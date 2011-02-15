@@ -30,6 +30,7 @@ What I do like about Tastypie:
 
 What it lacks: 
 
+* Ability to fetch a resource either through the accepts header or by suffixing the right extension (.json, .atom) -- no ?format tomfoolery.
 * Support for (read-only) feeds.
 * Support for microformats (when your data / models can be easily mapped to a microformat)
 * The ability to show all possible routes (Tastypie only shows the "base" ones, but sometimes it's useful to get a birds-eye overview.)
