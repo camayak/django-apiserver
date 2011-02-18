@@ -42,6 +42,7 @@ What it lacks:
 * It should also be autodocumenting, though with ample opportunity to pass in narrative docs as well. (e.g. as document docstrings).
 * PATCH support
 * read-only / calculated / included-from-elsewhere fields (?) w/ errors when people try to change them
+* Aggregated data on response times per view.
 
 What I like/dislike about other systems:
 
@@ -53,20 +54,23 @@ What I like/dislike about other systems:
 What we would also want, but is perhaps tangential to the API generator:
 
 * sandboxing
+
+What we'll forego: 
+
+* XML serialization, as mentioned
+* result sets (bad for cacheability)
+* schema definitions (nice but gimmicky)
 """
 
 # My ideal API construction process (very rough, all-over-the-place draft)
-
-# settings.py
-
-# routes are passed through Surlex by default
-APISERVER_ENABLE_SURLEX = False
 
 # Resources
 
 class Schmoe(api.Resource):
     class Meta:
-        route = '/people'
+        # routes are passed through surlex by default, but not if you explicitly
+        # specify a regex as the route
+        route = r'^/people$'
 
     # AUTH: one way of authenticating users (esp. useful for non-model resources, where row-level ACL doesn't make sense)
     @api.requires(roles.EDITOR)
