@@ -8,6 +8,7 @@ Where I would deviate from Tastypie:
 * Lists and details are conceptually separate resources (one's a bucket, the other's a thing), so while it should be easy to create both simultaneously with a minimal amount of code, they shouldn't be bunched up into a single resource.
 * Instead of list_allowed_methods and detail_allowed_methods, you should just override the methods you don't want to expose and raise a NotImplementedError there. Cleaner and more obvious.
 * I really like how Tastypie allows you to smoothly filter querysets, being able to specify which filters to allow et cetera. However, I would much rather implement this on top of Alex Gaynor's `django-filter` than reinvent the wheel.
+* Tastypie's error codes are off. It confuses 401s with 403s, and returns 410s in some cases where it should return 404s.
 
 (Most code that I'm not inclined to reuse lives in tastypie.api and tastypie.resources, though there are bits and bobs in those files which merit copy-pasting as well.)
 
@@ -64,13 +65,41 @@ What we'll forego:
 
 # My ideal API construction process (very rough, all-over-the-place draft)
 
+from django.contrib import syndication
+
 # Resources
+
+class re(str):
+    pass
+
+class CollectionResource(object):
+    name = "Collection feed"
+    
+
+    def make_feed(this):
+        class Feed(syndication.views.Feed):
+            title = this.__class__.__name__.lower() + " feed"
+        
+            def items(self):
+                # we could use a ?limit arg to limit things
+                return this.get_query_set()
+        
+            def item_title(self, item):
+                return this.name
+        
+            def item_description(self, item):
+                return this.description
+
+        return Feed
+
+    def item_title(self):
+        
 
 class Schmoe(api.Resource):
     class Meta:
         # routes are passed through surlex by default, but not if you explicitly
         # specify a regex as the route
-        route = r'^/people$'
+        route = re('^/people$')
 
     # AUTH: one way of authenticating users (esp. useful for non-model resources, where row-level ACL doesn't make sense)
     @api.requires(roles.EDITOR)
@@ -82,24 +111,90 @@ class Schmoe(api.Resource):
 
 class People(api.CollectionResource):
     # gets passed the same keyword arguments as show, create, update, destroy
-    def get_query_set(self, organization):
+    def get_query_set(self, request, organization):
         # preprocessing can easily happen with a custom manager
         return models.Person.authorize(user).filter(organization=organization).all()
 
-    class Meta:
-        # same syntax as tastypie, but serves to initialize a django-filter FilterSet, 
-        # which may be overriden separately.
-        filtering = {
-            "slug": ('exact', 'startswith',),
-            "title": ALL,
-        }
+    # gets passed the same keyword arguments as show, create, update, destroy, 
+    # but the queryset will be the first argument
+    def process_query_set(self, queryset, **kwargs):
         # handling authentication or whatever if it requires turning the queryset into a list
         # (and thus should be at the end of the line)
-        postprocess = [ACL,]    
+        return ACL(qs)  
         
 class Person(api.ModelResource):
-    class Meta
+    class Meta:
         collection = People
+
+    def get_title(self, obj):
+        return obj.name
+    
+    def get_description(self, obj):
+        return obj.bio
+
+# how URL routing would work:
+
+def soak_errors(fn):
+    try:
+        fn()
+    except:
+        return {
+            "error": "Internal server error", 
+            "message": "Sorry, we can't serve your request at this time."            
+        }
+
+# we should do this for the default ModelResource, nobody needs to see our internal error message traces
+@on_error(BaseException, 500, soak_errors)
+class ModelResource(object):
+    class FilterSet(api.FilterSet):
+        pass
+
+    # create, update etc. all pass through this for a modelresource
+    def get_filtered_query_set(self, request, **kwargs):
+        # filter by keyword args that come through the URL
+        qs = qs.filter(**kwargs)
+        # in addition, filter by get args with Alex Gaynor's django-filter
+        qs = self.FilterSet(request.GET, queryset=qs)
+        
+        return qs
+
+    def show(self, request, **kwargs):
+        qs = self.get_filtered_query_set(**kwargs)
+        return qs_to_repr(qs)
+
+class Organization(api.CollectionResource):
+    class Meta:
+        collection = Organizations
+        route = '/organizations/<type:s>/<uuid:s>/'
+    
+    # if you can't (or don't want to) cleanly map route args 
+    # to filter args, overrides can save the day
+    def get_filtered_query_set(self, **kwargs):
+        kwargs['type__name'] = org_type
+        del kwargs['type']
+        super(Organization, self).get_filtered_query_set(self, **kwargs)
+
+# shows QS filtering
+
+def add_response_time(fn):
+    response = fn()
+    response["meta"] = {"response_time": 550}
+    return response
+
+@on_view(add_response_time)         # add_response_time will be wrapped around show, create, update, destroy
+class Account(api.ModelResource):
+    class FilterSet(api.FilterSet):
+        class Meta:
+            fields = ['name', 'age', 'age__lt', 'age__gt', 'user__email']
+
+    def create(self):
+        raise NotImplementedError()
+
+    failure = lambda: {"error": "This doesn't work."}
+    
+    @on_error(PermissionError, 403, failure)
+    def destroy(self):
+        raise PermissionError()
         
 ## app ##
 import apiserver
