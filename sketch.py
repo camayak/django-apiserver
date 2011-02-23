@@ -61,6 +61,8 @@ What we'll forego:
 * XML serialization, as mentioned
 * result sets (bad for cacheability)
 * schema definitions (nice but gimmicky)
+
+Strategy: try to get as much of the routing etc. in place, before we start adding in the stuff we borrow from Tastypie. That'll make it easier to keep track with feature updates in Tastypie.
 """
 
 # My ideal API construction process (very rough, all-over-the-place draft)
@@ -74,8 +76,9 @@ class re(str):
 
 class CollectionResource(object):
     name = "Collection feed"
-    
 
+    # we'd only actually make a feed if the resource has a 
+    # item_title method defined -- can't make a feed without a title
     def make_feed(this):
         class Feed(syndication.views.Feed):
             title = this.__class__.__name__.lower() + " feed"
@@ -85,21 +88,20 @@ class CollectionResource(object):
                 return this.get_query_set()
         
             def item_title(self, item):
-                return this.name
+                return this.item_title(name)
         
             def item_description(self, item):
-                return this.description
+                return this.item_description(description)
 
         return Feed
 
-    def item_title(self):
-        
+    def item_description(self):
+        return ''
 
 class Schmoe(api.Resource):
-    class Meta:
-        # routes are passed through surlex by default, but not if you explicitly
-        # specify a regex as the route
-        route = re('^/people$')
+    # routes are passed through surlex by default, but not if you explicitly
+    # specify a regex as the route
+    route = re('^/people$')
 
     # AUTH: one way of authenticating users (esp. useful for non-model resources, where row-level ACL doesn't make sense)
     @api.requires(roles.EDITOR)
@@ -113,6 +115,8 @@ class People(api.CollectionResource):
     # gets passed the same keyword arguments as show, create, update, destroy
     def get_query_set(self, request, organization):
         # preprocessing can easily happen with a custom manager
+        # -- note that specifically for authentication and authorization, you can also use
+        # the right meta properties w/ Tastypie Authorization and Authentication classes
         return models.Person.authorize(user).filter(organization=organization).all()
 
     # gets passed the same keyword arguments as show, create, update, destroy, 
@@ -123,8 +127,7 @@ class People(api.CollectionResource):
         return ACL(qs)  
         
 class Person(api.ModelResource):
-    class Meta:
-        collection = People
+    collection = People
 
     def get_title(self, obj):
         return obj.name
@@ -144,6 +147,8 @@ def soak_errors(fn):
         }
 
 # we should do this for the default ModelResource, nobody needs to see our internal error message traces
+# -- however, because people can add their own decorators, we have to make sure that this is always the
+# outer wrapper -- so perhaps we need this as a metaclass, or just during __init__
 @on_error(BaseException, 500, soak_errors)
 class ModelResource(object):
     class FilterSet(api.FilterSet):
@@ -163,9 +168,8 @@ class ModelResource(object):
         return qs_to_repr(qs)
 
 class Organization(api.CollectionResource):
-    class Meta:
-        collection = Organizations
-        route = '/organizations/<type:s>/<uuid:s>/'
+    collection = Organizations
+    route = '/organizations/<type:s>/<uuid:s>/'
     
     # if you can't (or don't want to) cleanly map route args 
     # to filter args, overrides can save the day
@@ -196,6 +200,15 @@ class Account(api.ModelResource):
     def destroy(self):
         raise PermissionError()
         
+# stuff that we'll handle in exactly the same way as Tastypie
+
+class Note(api.ModelResource):
+    # not in class Meta, because this would make it more difficult to do selective overrides
+    authentication = FancyAuth()
+    authorization = FancyAuthorization()
+    validation = Validation()
+    cache = SimpleCache()
+
 ## app ##
 import apiserver
 
