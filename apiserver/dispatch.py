@@ -3,7 +3,6 @@
 # TODO: this is Flask code, I've yet to port this to Django -- but the basic 
 # way of doing things can remain intact.
 
-from flask import request
 from django.http import HttpResponse
 import types
 from functools import wraps
@@ -15,6 +14,7 @@ MIMETYPES = {
     'txt': 'text/plain',
     'yaml': 'text/yaml',
     'html': 'text/html',
+    'atom': 'application/atom+xml',
     }
 
 """
@@ -35,11 +35,11 @@ In a nutshell, it works like this:
 
 def format_dispatcher(app, view):
     @utils.timed()
-    def format_aware_view(**kwargs):
+    def format_aware_view(request, **kwargs):
         format = kwargs['format']
         request.format = format
         del kwargs['format']
-        initialized_view = view(**kwargs)
+        initialized_view = view(request, **kwargs)
         if format not in initialized_view:
             # not implemented
             return HttpResponse(status=501)
@@ -48,44 +48,3 @@ def format_dispatcher(app, view):
         response.mimetype = MIMETYPES[format]
         return response
     return format_aware_view
-
-"""
-An error handling decorator. Usage:
-
-@on_error(NoObjectsFound, 404)
-@on_error(IOError, 503)
-def my_view():
-    raise IOError("Database down for maintenance")
-    
-Works on RESTController classes as well, in which case
-the class decorator will decorate the 'show', 'create', 
-'update' and 'destroy' methods.
-"""
-
-class on_error(object):
-    def __init__(self, exception, code):
-        self.exception = exception
-        self.code = code
-
-    def decorate_fn(self, fn):
-        @wraps(fn)
-        def safe_fn(*vargs, **kwargs):
-            try:
-                return fn(*vargs, **kwargs)
-            except self.exception:
-                abort(self.code)
-                
-        return safe_fn
-        
-    def decorate_cls(self, cls):
-        for name in ['show', 'create', 'update', 'destroy']:
-            if hasattr(cls, name):
-                method = getattr(cls, name)
-                setattr(cls, name, self.decorate_fn(method))
-        return cls
-
-    def __call__(self, obj):
-        if isinstance(obj, types.FunctionType):
-            return self.decorate_fn(obj)
-        else:
-            return self.decorate_cls(obj)

@@ -1,7 +1,10 @@
 # encoding: utf-8
 
-import time   
-from functools import wraps                                             
+import time
+import logging  
+from functools import wraps    
+
+log = logging.getLogger("apiserver")                                         
 
 class timed(object):
     def __init__(self, callback=None):
@@ -19,7 +22,7 @@ class timed(object):
             if self.callback:
                 self.callback(msg)
             else:
-                print msg
+                log.info(msg)
             return result
 
         return timed_fn

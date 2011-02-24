@@ -43,7 +43,7 @@ What it lacks:
 * It should also be autodocumenting, though with ample opportunity to pass in narrative docs as well. (e.g. as document docstrings).
 * PATCH support
 * read-only / calculated / included-from-elsewhere fields (?) w/ errors when people try to change them
-* Aggregated data on response times per view.
+* Aggregated data on response times, failed authentication, failed authorization etc. globally, per view and per request.
 
 What I like/dislike about other systems:
 
@@ -62,7 +62,7 @@ What we'll forego:
 * result sets (bad for cacheability)
 * schema definitions (nice but gimmicky)
 
-Strategy: try to get as much of the routing etc. in place, before we start adding in the stuff we borrow from Tastypie. That'll make it easier to keep track with feature updates in Tastypie.
+Strategy: try to get as much of the routing etc. in place, before we start adding in the stuff we borrow from Tastypie. That'll make it easier to keep track with feature updates in Tastypie. Even better: wherever possible, do imports rather than copy-pastes.
 """
 
 # My ideal API construction process (very rough, all-over-the-place draft)
@@ -194,6 +194,9 @@ class Account(api.ModelResource):
     def create(self):
         raise NotImplementedError()
 
+    # perhaps this is better, if we wish to support OPTIONS
+    create = None
+
     failure = lambda: {"error": "This doesn't work."}
     
     @on_error(PermissionError, 403, failure)
@@ -222,8 +225,7 @@ api = apiserver.API('v1')
 explorer = apiserver.Explorer(api)
 # register a module
 api.register(organizations)
-# register a base module (it expects a 'resources' variable to be present in __init__.py)
-api.register(publications)
+api.register(publications.resources)
 # register a single resource
 api.register(Role)
 

@@ -11,7 +11,7 @@ class on_view(object):
         return wraps(self.wrapper(fn))
         
     def decorate_cls(self, cls):
-        for name in ['show', 'create', 'update', 'destroy']:
+        for name in cls.methods:
             if hasattr(cls, name):
                 method = getattr(cls, name)
                 setattr(cls, name, self.decorate_fn(method))
@@ -32,7 +32,7 @@ class on_error(on_view):
     def my_view():
         raise IOError("Database down for maintenance")
     
-    Works on RESTController classes as well, in which case
+    Works on Resource classes as well, in which case
     the class decorator will decorate the 'show', 'create', 
     'update' and 'destroy' methods.
     """
@@ -40,10 +40,10 @@ class on_error(on_view):
     def __init__(self, *vargs):
         if instanceof(vargs[-1], FunctionType):
             self.message = vargs.pop()
-            self.status_code = vargs.pop()
+            self.status = vargs.pop()
         else:
             self.message = lambda: ''
-            self.status_code = vargs.pop()
+            self.status = vargs.pop()
         
         self.exceptions = vargs
 
@@ -53,7 +53,7 @@ class on_error(on_view):
             try:
                 return fn(*vargs, **kwargs)
             except self.exception:
-                HttpResponse(self.message(), status_code=self.code)
+                HttpResponse(self.message(), status=self.status)
                 
         return safe_fn
 
@@ -73,8 +73,4 @@ class only(on_view):
         if fn.__name__ in self.methods:
             return fn
         else:
-            @wraps(fn)
-            def new_fn(*vargs, **kwargs):
-                raise NotImplementedError()
-                
-            return new_fn
+            return None
