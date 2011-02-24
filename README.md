@@ -1,3 +1,7 @@
+`django-apiserver` is a proof-of-concept API generator for Django, reusing all the internals from Tastypie but replacing its routing and views system with one more akin to regular views. This is not a usable piece of software; it is an experiment. That said, if it were an actual piece of software, below is how the README would look.
+
+---
+
 `django-apiserver` is a RESTful and HATEOAS-compliant API generator for Django. APIServer distinguishes itself from other Django API generators by its more explicit, less magical approach to API generation. It comes with a bunch of sensible defaults and works well with Django models, but refrains from guessing your intentions.
 
 In addition to serving up RESTful resources, the APIServer can create an API explorer for you, complete with documentation.
