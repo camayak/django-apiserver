@@ -105,6 +105,8 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
+    'organization',
+    'fixture_generator',
 )
 
 # A sample logging configuration. The only tangible logging

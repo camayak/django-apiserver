@@ -1,0 +1,34 @@
+[
+    {
+        "pk": 1, 
+        "model": "organization.person", 
+        "fields": {
+            "organization": 1, 
+            "first_name": "Stijn", 
+            "last_name": "Debrouwere"
+        }
+    }, 
+    {
+        "pk": 2, 
+        "model": "organization.person", 
+        "fields": {
+            "organization": 2, 
+            "first_name": "Daniel", 
+            "last_name": "Bachhuber"
+        }
+    }, 
+    {
+        "pk": 1, 
+        "model": "organization.organization", 
+        "fields": {
+            "name": "ACME"
+        }
+    }, 
+    {
+        "pk": 2, 
+        "model": "organization.organization", 
+        "fields": {
+            "name": "REX"
+        }
+    }
+]

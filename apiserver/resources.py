@@ -8,7 +8,9 @@ import serializers
 from surlex import surlex_to_regex
 from django.conf.urls.defaults import patterns, url
 from django.http import HttpResponse
+from django.core.exceptions import ObjectDoesNotExist
 from apiserver.bundle import Bundle
+from tastypie import resources as tastypie
 
 log = logging.getLogger("apiserver")
 
@@ -106,14 +108,71 @@ class Resource(object):
         
         raw_response = view(request, **kwargs)
         return HttpResponse(self.serialize(request, raw_response, format))
-        # return dispatch.format_dispatcher(view)
 
     def __init__(self):
         if not isinstance(self.route, re):
             self.route = surlex_to_regex(self.route)
-        self.route = self.route.rstrip('/') + '(\.(?P<format>[\w]+))?'
+        self.route = self.route.rstrip('/') + '(\.(?P<format>[\w]+))?$'
 
         for method in self.methods:
             name = self.__class__.__name__ + '#' + self.methods[method].__name__
             route_with_method = '{0} {1}'.format(method, self.route)
             log.info('Registered {0} for {1}'.format(route_with_method, name))
+
+
+class ModelResource(Resource):
+    def get_object_list(self, request):
+        """
+        An ORM-specific implementation of ``get_object_list``.
+        
+        Returns a queryset that may have been limited by authorization or other
+        overrides.
+        """
+        base_object_list = self.queryset
+        return base_object_list
+        
+        # Limit it as needed.
+        authed_object_list = self.apply_authorization_limits(request, base_object_list)
+        return authed_object_list
+
+    def obj_get_list(self, request=None, **kwargs):       
+        try:
+            return self.get_object_list(request).filter(**kwargs)
+        except ValueError, e:
+            raise NotFound("Invalid resource lookup data provided (mismatched type).")
+    
+    def obj_get(self, request=None, **kwargs):
+        """
+        A ORM-specific implementation of ``obj_get``.
+        
+        Takes optional ``kwargs``, which are used to narrow the query to find
+        the instance.
+        """
+        try:
+            return self.obj_get_list(request).get(**kwargs)
+        except ValueError, e:
+            raise NotFound("Invalid resource lookup data provided (mismatched type).")
+    
+    def show(self, request, **kwargs):
+        """
+        Returns a single serialized resource.
+        
+        Calls ``cached_obj_get/obj_get`` to provide the data, then handles that result
+        set and serializes it.
+        
+        Should return a HttpResponse (200 OK).
+        """
+        del kwargs['format']
+        try:
+            obj = self.obj_get(request, **kwargs)
+        except ObjectDoesNotExist:
+            return HttpResponse(status=404)
+
+        return obj.__dict__
+
+
+class CollectionResource(ModelResource):
+    def show(self, request, **kwargs):
+        del kwargs['format']
+        objs = self.obj_get_list(request, **kwargs)
+        return [obj.__dict__ for obj in objs]
