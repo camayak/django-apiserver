@@ -7,8 +7,8 @@ from organization import models as organization
 Visit these URLs to see how it works:
 - /organizations.json 
 - /organizations/acme/people.json
-- /organizations/acme/people/1.json
-- /organizations/rex/people/1.json
+- /organizations/ACME/people/1.json
+- /organizations/REX/people/2.json
 
 Differences from Tastypie
 - url routing is entirely manual, no magic
@@ -48,13 +48,20 @@ class Organization(api.ModelResource):
 class Organizations(Organization, api.CollectionResource):
     route = '/organizations'
 
-
 # deep model resource
 class Person(api.ModelResource):
     route = '/organizations/<organization__name:s>/people/<pk:#>'
     queryset = organization.Person.objects.all()
 
-
+    # resource URI test -- see apiserver.resources for implementation;
+    # like tastypie, easily overridable by just overloading
+    # get_resource_uri
+    def show(self, request, **kwargs):
+        representation = super(Person, self).show(request, **kwargs)
+        del kwargs['format']
+        representation['uri'] = self.get_resource_uri(self.obj_get(**kwargs))
+        return representation
+        
 # deep collection resource
 class People(Person, api.CollectionResource):
     route = '/organizations/<org:s>/people'
@@ -68,4 +75,4 @@ class People(Person, api.CollectionResource):
         del kwargs['org']
         kwargs['organization__name'] = org.upper()
         
-        return super(People, self).show(request, **kwargs)
+        return super(Person, self).show(request, **kwargs)

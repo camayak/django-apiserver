@@ -20,5 +20,3 @@ class API(object):
             self.patterns.append(url(instance.route, instance.dispatch))
 
         self.urlconf += patterns('', (self.version, include(self.patterns)))
-        
-        print self.urlconf

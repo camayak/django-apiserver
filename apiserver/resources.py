@@ -6,6 +6,7 @@ import inspect
 import utils
 import serializers
 from surlex import surlex_to_regex
+from surlex.grammar import Parser, TextNode, BlockNode
 from django.conf.urls.defaults import patterns, url
 from django.http import HttpResponse
 from django.core.exceptions import ObjectDoesNotExist
@@ -120,7 +121,27 @@ class Resource(object):
             log.info('Registered {0} for {1}'.format(route_with_method, name))
 
 
+def get_attribute(obj, attr_string):
+    attrs = attr_string.split("__")
+    for attr in attrs:
+        obj = getattr(obj, attr) 
+    return obj
+
 class ModelResource(Resource):
+    # not strictly correct, a first stab
+    def get_resource_uri(self, obj):
+        nodes = Parser(self.__class__.route).get_node_list()
+        print nodes
+        uri = ''
+        for node in nodes:
+            print uri
+            if isinstance(node, TextNode):
+                uri += node.token
+            else:
+                uri += str(get_attribute(obj, node.name))
+        
+        return uri
+
     def get_object_list(self, request):
         """
         An ORM-specific implementation of ``get_object_list``.
@@ -166,7 +187,7 @@ class ModelResource(Resource):
         try:
             obj = self.obj_get(request, **kwargs)
         except ObjectDoesNotExist:
-            return HttpResponse(status=404)
+            return None
 
         return obj.__dict__
 
