@@ -60,6 +60,11 @@ class Person(api.ModelResource):
         representation = super(Person, self).show(request, filters, format)
         representation['uri'] = self.get_resource_uri(self.obj_get(filters=filters))
         return representation
+
+def transform(filters, old, new, fn):
+    filters[new] = fn(filters[old])
+    del filters[old]
+    return filters
         
 # deep collection resource
 class People(Person, api.CollectionResource):
@@ -70,8 +75,5 @@ class People(Person, api.CollectionResource):
     # this example transforms the filter args, and uppercases the org name
     # before handing it off
     def show(self, request, filters, format):
-        org = filters['org']
-        del filters['org']
-        filters['organization__name'] = org.upper()
-        
+        filters = transform(filters, 'org', 'organization__name', lambda name: name.upper())
         return super(Person, self).show(request, filters, format)
