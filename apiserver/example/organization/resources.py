@@ -25,7 +25,8 @@ a prototype.
 
 # regular resource
 class Message(api.Resource):
-    route = '/messages/<name:s>'
+    class Meta:
+        route = '/messages/<name:s>'
     
     def show(self, request, **kwargs):
         print kwargs
@@ -34,24 +35,28 @@ class Message(api.Resource):
 
 # regular model resource
 class Everybody(api.ModelResource):
-    route = '/everybody/<pk:#>'
-    queryset = organization.Person.objects.all()
+    class Meta:
+        route = '/everybody/<pk:#>'
+        queryset = organization.Person.objects.all()
 
 
 # model resource
 class Organization(api.ModelResource):
-    route = '/organizations/<name:s>'
-    queryset = organization.Organization.objects.all()
+    class Meta:
+        route = '/organizations/<name:s>'
+        queryset = organization.Organization.objects.all()
 
 
 # collection resource
 class Organizations(Organization, api.CollectionResource):
-    route = '/organizations'
+    class Meta:
+        route = '/organizations'
 
 # deep model resource
 class Person(api.ModelResource):
-    route = '/organizations/<organization__name:s>/people/<pk:#>'
-    queryset = organization.Person.objects.all()
+    class Meta:
+        route = '/organizations/<organization__name:s>/people/<pk:#>'
+        queryset = organization.Person.objects.all()
 
     # resource URI test -- see apiserver.resources for implementation;
     # like tastypie, easily overridable by just overloading
@@ -68,7 +73,13 @@ def transform(filters, old, new, fn):
         
 # deep collection resource
 class People(Person, api.CollectionResource):
-    route = '/organizations/<org:s>/people'
+    class Meta:
+        route = '/organizations/<org:s>/people'
+        # the point about letting a CollectionResource inherit from its related
+        # ModelResource would be so that we don't have to repeat the queryset
+        # ... but I still have to figure out how to do that exactly w/
+        # a Meta object
+        queryset = organization.Person.objects.all()
     
     # shows how you could customize the args or do other wacky things
     # 

@@ -17,6 +17,6 @@ class API(object):
             
         for resource in resources:
             instance = resource()
-            self.patterns.append(url(instance.route, instance.dispatch, name=instance.name))
+            self.patterns.append(url(instance._meta.parsed_route, instance.dispatch, name=instance.name))
 
         self.urlconf += patterns('', (self.version, include(self.patterns)))
