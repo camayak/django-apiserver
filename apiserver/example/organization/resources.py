@@ -56,10 +56,9 @@ class Person(api.ModelResource):
     # resource URI test -- see apiserver.resources for implementation;
     # like tastypie, easily overridable by just overloading
     # get_resource_uri
-    def show(self, request, **kwargs):
-        representation = super(Person, self).show(request, **kwargs)
-        del kwargs['format']
-        representation['uri'] = self.get_resource_uri(self.obj_get(**kwargs))
+    def show(self, request, filters, format):
+        representation = super(Person, self).show(request, filters, format)
+        representation['uri'] = self.get_resource_uri(self.obj_get(filters=filters))
         return representation
         
 # deep collection resource
@@ -70,9 +69,9 @@ class People(Person, api.CollectionResource):
     # 
     # this example transforms the filter args, and uppercases the org name
     # before handing it off
-    def show(self, request, **kwargs):
-        org = kwargs['org']
-        del kwargs['org']
-        kwargs['organization__name'] = org.upper()
+    def show(self, request, filters, format):
+        org = filters['org']
+        del filters['org']
+        filters['organization__name'] = org.upper()
         
-        return super(Person, self).show(request, **kwargs)
+        return super(Person, self).show(request, filters, format)

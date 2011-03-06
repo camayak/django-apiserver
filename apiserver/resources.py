@@ -10,6 +10,8 @@ from surlex.grammar import Parser, TextNode, BlockNode
 from django.conf.urls.defaults import patterns, url
 from django.http import HttpResponse
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.urlresolvers import reverse
+from django.db import models
 from apiserver.bundle import Bundle
 from tastypie import resources as tastypie
 
@@ -29,6 +31,13 @@ class Resource(object):
     serializer = serializers.Serializer()
 
     @property
+    def name(self):
+        path = self.__class__.__module__ + '.' + self.__class__.__name__
+        # with dots, Django would interpret this as a reference
+        # to an actual view function, which it isn't
+        return path.replace(".", "-")
+
+    @property
     def methods(self):
         return {
             'GET': self.show,
@@ -39,22 +48,22 @@ class Resource(object):
             'PATCH': self.patch,   
             }
         
-    def show(self, request, **kwargs):
+    def show(self, request, filters, format):
         pass
     
-    def create(self, request, **kwargs):
+    def create(self, request, filters, format):
         pass
 
-    def update(self, request, **kwargs):
+    def update(self, request, filters, format):
         pass
 
-    def destroy(self, request, **kwargs):
+    def destroy(self, request, filters, format):
         pass
 
-    def options(self, request, **kwargs):
+    def options(self, request, filters, format):
         pass
         
-    def patch(self, request, **kwargs):
+    def patch(self, request, filters, format):
         pass
 
     def serialize(self, request, data, format, options=None):
@@ -104,10 +113,10 @@ class Resource(object):
 
     def dispatch(self, request, **kwargs):            
         view = self.methods[request.method]
-        
-        format = utils.mime.determine_format(request, kwargs['format'], self.serializer)
-        
-        raw_response = view(request, **kwargs)
+        raw_format = kwargs['format']
+        del kwargs['format']
+        format = utils.mime.determine_format(request, raw_format, self.serializer)
+        raw_response = view(request, kwargs, raw_format)
         return HttpResponse(self.serialize(request, raw_response, format))
 
     def __init__(self):
@@ -116,7 +125,7 @@ class Resource(object):
         self.route = self.route.rstrip('/') + '(\.(?P<format>[\w]+))?$'
 
         for method in self.methods:
-            name = self.__class__.__name__ + '#' + self.methods[method].__name__
+            name = self.name + '#' + self.methods[method].__name__
             route_with_method = '{0} {1}'.format(method, self.route)
             log.info('Registered {0} for {1}'.format(route_with_method, name))
 
@@ -124,23 +133,23 @@ class Resource(object):
 def get_attribute(obj, attr_string):
     attrs = attr_string.split("__")
     for attr in attrs:
-        obj = getattr(obj, attr) 
+        obj = getattr(obj, attr)
+    
+    if isinstance(obj, models.Model):
+        obj = obj.pk
+     
     return obj
 
 class ModelResource(Resource):
     # not strictly correct, a first stab
     def get_resource_uri(self, obj):
-        nodes = Parser(self.__class__.route).get_node_list()
-        print nodes
-        uri = ''
+        filters = {}
+        nodes = Parser(self.__class__.route).get_node_list()        
         for node in nodes:
-            print uri
-            if isinstance(node, TextNode):
-                uri += node.token
-            else:
-                uri += str(get_attribute(obj, node.name))
+            if not isinstance(node, TextNode):
+                filters[node.name] = str(get_attribute(obj, node.name))        
         
-        return uri
+        return reverse(self.name, kwargs=filters)
 
     def get_object_list(self, request):
         """
@@ -156,13 +165,13 @@ class ModelResource(Resource):
         authed_object_list = self.apply_authorization_limits(request, base_object_list)
         return authed_object_list
 
-    def obj_get_list(self, request=None, **kwargs):       
+    def obj_get_list(self, request=None, filters={}):       
         try:
-            return self.get_object_list(request).filter(**kwargs)
+            return self.get_object_list(request).filter(**filters)
         except ValueError, e:
             raise NotFound("Invalid resource lookup data provided (mismatched type).")
     
-    def obj_get(self, request=None, **kwargs):
+    def obj_get(self, request=None, filters={}):
         """
         A ORM-specific implementation of ``obj_get``.
         
@@ -170,11 +179,11 @@ class ModelResource(Resource):
         the instance.
         """
         try:
-            return self.obj_get_list(request).get(**kwargs)
+            return self.obj_get_list(request).get(**filters)
         except ValueError, e:
             raise NotFound("Invalid resource lookup data provided (mismatched type).")
     
-    def show(self, request, **kwargs):
+    def show(self, request, filters, format):
         """
         Returns a single serialized resource.
         
@@ -183,9 +192,8 @@ class ModelResource(Resource):
         
         Should return a HttpResponse (200 OK).
         """
-        del kwargs['format']
         try:
-            obj = self.obj_get(request, **kwargs)
+            obj = self.obj_get(request, filters)
         except ObjectDoesNotExist:
             return None
 
@@ -193,7 +201,6 @@ class ModelResource(Resource):
 
 
 class CollectionResource(ModelResource):
-    def show(self, request, **kwargs):
-        del kwargs['format']
-        objs = self.obj_get_list(request, **kwargs)
+    def show(self, request, filters, format):
+        objs = self.obj_get_list(request, filters)
         return [obj.__dict__ for obj in objs]
