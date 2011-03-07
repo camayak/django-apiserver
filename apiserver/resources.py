@@ -12,13 +12,8 @@ from django.core.urlresolvers import reverse
 from surlex import surlex_to_regex
 
 from tastypie import resources as tastypie
-
-from apiserver.bundle import Bundle
+from apiserver import bundle, dispatch, serializers, utils, options
 from apiserver.fields import *
-from apiserver import serializers
-from apiserver import utils
-from apiserver import dispatch
-from apiserver.options import ResourceOptions
 
 log = logging.getLogger("apiserver")
 
@@ -51,7 +46,7 @@ class DeclarativeMetaclass(type):
         attrs['declared_fields'] = declared_fields
         new_class = super(DeclarativeMetaclass, cls).__new__(cls, name, bases, attrs)
         opts = getattr(new_class, 'Meta', None)
-        new_class._meta = ResourceOptions(opts)
+        new_class._meta = options.ResourceOptions(opts)
         
         if not getattr(new_class._meta, 'resource_name', None):
             # No ``resource_name`` provided. Attempt to auto-name the resource.
@@ -168,7 +163,7 @@ class Resource(object):
         if obj is None:
             obj = self._meta.object_class()
         
-        return Bundle(obj, data)
+        return bundle.Bundle(obj, data)
 
     def dispatch(self, request, **kwargs):            
         view = self.methods[request.method]
@@ -346,7 +341,6 @@ class ModelResource(Resource):
         Returns a queryset that may have been limited by authorization or other
         overrides.
         """
-        print self._meta.limit
         base_object_list = self._meta.queryset
         return base_object_list
         
