@@ -63,7 +63,7 @@ class Person(api.ModelResource):
     # get_resource_uri
     def show(self, request, filters, format):
         representation = super(Person, self).show(request, filters, format)
-        representation['uri'] = self.get_resource_uri(self.obj_get(filters=filters))
+        representation['uri'] = self.get_resource_uri(self.obj_get(filters=filters), format)
         return representation
 
 def transform(filters, old, new, fn):

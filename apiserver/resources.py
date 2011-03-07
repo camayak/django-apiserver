@@ -2,6 +2,7 @@
 
 import logging
 import inspect
+import re
 
 from django.conf.urls.defaults import patterns, url
 from django.http import HttpResponse
@@ -9,7 +10,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
 
 from surlex import surlex_to_regex
-from surlex.grammar import Parser, TextNode, BlockNode
 
 from tastypie import resources as tastypie
 
@@ -22,9 +22,8 @@ from apiserver.options import ResourceOptions
 
 log = logging.getLogger("apiserver")
 
-class re(str):
+class r(str):
     pass
-
 
 class DeclarativeMetaclass(type):
     def __new__(cls, name, bases, attrs):
@@ -173,17 +172,17 @@ class Resource(object):
 
     def dispatch(self, request, **kwargs):            
         view = self.methods[request.method]
-        raw_format = kwargs['format']
-        del kwargs['format']
+        raw_format = kwargs['__format']
+        del kwargs['__format']
         format = utils.mime.determine_format(request, raw_format, self._meta.serializer)
         raw_response = view(request, kwargs, raw_format)
         return HttpResponse(self.serialize(request, raw_response, format))
 
     def __init__(self):
         route = self._meta.route
-        if not isinstance(route, re):
+        if not isinstance(route, r):
             route = surlex_to_regex(route)
-        route = route.rstrip('/') + '(\.(?P<format>[\w]+))?$'
+        route = route.rstrip('/') + '(\.(?P<__format>[\w]+))?$'
         self._meta.parsed_route = route
 
         methods = ", ".join(self.methods.keys())
@@ -323,15 +322,19 @@ class ModelResource(Resource):
         
         return final_fields
 
-    # not strictly correct, a first stab
-    def get_resource_uri(self, obj):
-        filters = {}
-        nodes = Parser(self.__class__._meta.route).get_node_list()        
-        for node in nodes:
-            if not isinstance(node, TextNode):
-                filters[node.name] = str(utils.traverse(obj, node.name))        
+    def get_resource_uri(self, obj, format=None):
+        if format:
+            format = '.' + format
+        else:
+            format = ''
         
-        return reverse(self.name, kwargs=filters)
+        filters = re.compile(self._meta.parsed_route).groupindex
+        if '__format' in filters:
+            del filters["__format"]
+        for attr in filters:
+            filters[attr] = utils.traverse(obj, attr)  
+        
+        return reverse(self.name, kwargs=filters) + format
 
     def get_object_list(self, request):
         """
