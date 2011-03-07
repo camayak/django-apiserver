@@ -385,7 +385,10 @@ class ModelResource(Resource):
         return obj.__dict__
 
 
-class CollectionResource(ModelResource):
+class Collection(object):
     def show(self, request, filters, format):
         objs = self.obj_get_list(request, filters)
         return [obj.__dict__ for obj in objs]
+
+class CollectionResource(ModelResource, Collection):
+    pass

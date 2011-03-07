@@ -48,7 +48,7 @@ class Organization(api.ModelResource):
 
 
 # collection resource
-class Organizations(Organization, api.CollectionResource):
+class Organizations(Organization, api.Collection):
     class Meta:
         route = '/organizations'
 
@@ -72,7 +72,7 @@ def transform(filters, old, new, fn):
     return filters
         
 # deep collection resource
-class People(Person, api.CollectionResource):
+class People(Person, api.Collection):
     class Meta:
         route = '/organizations/<org:s>/people'
         # the point about letting a CollectionResource inherit from its related
