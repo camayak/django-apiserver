@@ -8,6 +8,13 @@ from tastypie.validation import Validation
 
 from apiserver.serializers import Serializer
 
+# options that work in tastypie but have been removed from apiserver:
+# - allowed_methods (use a decorator)
+# - list_allowed_methods (use a decorator)
+# - detail_allowed_methods (use a decorator)
+# - api_name (defined in an API object)
+# - resource_name (use a route)
+# - urlconf_namespace (not implemented)
 class ResourceOptions(object):
     """
     A configuration class for ``Resource``.
@@ -21,13 +28,7 @@ class ResourceOptions(object):
     cache = NoCache()
     throttle = BaseThrottle()
     validation = Validation()
-    #allowed_methods = ['get', 'post', 'put', 'delete']
-    #list_allowed_methods = None
-    #detail_allowed_methods = None
     limit = getattr(settings, 'API_LIMIT_PER_PAGE', 20)
-    #api_name = None
-    #resource_name = None
-    #urlconf_namespace = None
     route = None
     default_format = 'application/json'
     filtering = {}
