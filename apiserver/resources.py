@@ -180,6 +180,9 @@ class Resource(object):
 
     def __init__(self):
         route = self._meta.route
+        if not route:
+            route = ''
+        #    raise Exception("Can't have a resource without a route")
         if not isinstance(route, r):
             route = surlex_to_regex(route)
         route = route.rstrip('/') + '(\.(?P<__format>[\w]+))?$'
@@ -193,7 +196,7 @@ class Resource(object):
 class ModelDeclarativeMetaclass(DeclarativeMetaclass):
     def __new__(cls, name, bases, attrs):
         meta = attrs.get('Meta')
-                
+        
         if meta and hasattr(meta, 'queryset'):
             setattr(meta, 'object_class', meta.queryset.model)
         
@@ -343,6 +346,7 @@ class ModelResource(Resource):
         Returns a queryset that may have been limited by authorization or other
         overrides.
         """
+        print self._meta.limit
         base_object_list = self._meta.queryset
         return base_object_list
         
@@ -367,7 +371,7 @@ class ModelResource(Resource):
             return self.obj_get_list(request).get(**filters)
         except ValueError, e:
             raise NotFound("Invalid resource lookup data provided (mismatched type).")
-    
+
     def show(self, request, filters, format):
         """
         Returns a single serialized resource.
@@ -383,12 +387,9 @@ class ModelResource(Resource):
             return None
 
         return obj.__dict__
+        
 
-
-class Collection(object):
+class CollectionResource(ModelResource):
     def show(self, request, filters, format):
         objs = self.obj_get_list(request, filters)
         return [obj.__dict__ for obj in objs]
-
-class CollectionResource(ModelResource, Collection):
-    pass

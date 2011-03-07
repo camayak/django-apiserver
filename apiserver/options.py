@@ -43,10 +43,10 @@ class ResourceOptions(object):
         overrides = {}
         
         # Handle overrides.
-        if meta:        
+        if meta:
             for override_name in dir(meta):
                 # No internals please.
                 if not override_name.startswith('_'):
                     overrides[override_name] = getattr(meta, override_name)
-        
+               
         return object.__new__(type('ResourceOptions', (cls,), overrides))

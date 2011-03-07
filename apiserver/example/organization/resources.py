@@ -48,13 +48,37 @@ class Organization(api.ModelResource):
 
 
 # collection resource
-class Organizations(Organization, api.Collection):
-    class Meta:
+class Organizations(Organization, api.CollectionResource):
+    class Meta(Organization.Meta):
         route = '/organizations'
 
-# deep model resource
-class Person(api.ModelResource):
+
+def transform(filters, old, new, fn):
+    filters[new] = fn(filters[old])
+    del filters[old]
+    return filters
+
+
+# deep collection resource
+class People(api.CollectionResource):
     class Meta:
+        route = '/organizations/<org:s>/people'
+        queryset = organization.Person.objects.all()
+            
+    # shows how you could customize the args or do other wacky things
+    # 
+    # this example transforms the filter args, and uppercases the org name
+    # before handing it off
+    def show(self, request, filters, format):
+        filters = transform(filters, 'org', 'organization__name', lambda name: name.upper())
+        return super(People, self).show(request, filters, format)
+
+
+# deep model resource
+# this one inherits the other way around (from list to detail instead of from detail to list)
+# which works just as well
+class Person(People, api.ModelResource):
+    class Meta(People.Meta):
         route = '/organizations/<organization__name:s>/people/<pk:#>'
         queryset = organization.Person.objects.all()
 
@@ -65,26 +89,3 @@ class Person(api.ModelResource):
         representation = super(Person, self).show(request, filters, format)
         representation['uri'] = self.get_resource_uri(self.obj_get(filters=filters), format)
         return representation
-
-def transform(filters, old, new, fn):
-    filters[new] = fn(filters[old])
-    del filters[old]
-    return filters
-        
-# deep collection resource
-class People(Person, api.Collection):
-    class Meta:
-        route = '/organizations/<org:s>/people'
-        # the point about letting a CollectionResource inherit from its related
-        # ModelResource would be so that we don't have to repeat the queryset
-        # ... but I still have to figure out how to do that exactly w/
-        # a Meta object
-        queryset = organization.Person.objects.all()
-    
-    # shows how you could customize the args or do other wacky things
-    # 
-    # this example transforms the filter args, and uppercases the org name
-    # before handing it off
-    def show(self, request, filters, format):
-        filters = transform(filters, 'org', 'organization__name', lambda name: name.upper())
-        return super(Person, self).show(request, filters, format)
