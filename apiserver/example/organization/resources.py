@@ -40,24 +40,35 @@ class Everybody(api.ModelResource):
         queryset = organization.Person.objects.all()
 
 
-# collection resource
-class Organizations(api.ModelCollectionResource):
+# model resource
+class Organization(api.ModelResource):
     class Meta:
-        route = '/organizations'
+        route = '/organizations/<name:s>'
         queryset = organization.Organization.objects.all()
 
+# collection resource
+class Organizations(api.ModelCollection, Organization):
+    class Meta(Organization.Meta):
+        route = '/organizations'
 
-# model resource
-class Organization(Organizations, api.ModelResource):
-    class Meta(Organizations.Meta):
-        route = '/organizations/<name:s>'
+
+# deep model resource
+class Person(api.ModelResource):
+    class Meta:
+        route = '/organizations/<organization__name:s>/people/<pk:#>'
+        queryset = organization.Person.objects.all()
+    
+    # hmm, I don't like that this has to happen, though it's a direct
+    # consequence of subclassing from the list resource
+    # -- perhaps just subclassing Meta should be enough?
+    def show(self, request, filters, format):
+        return super(Person, self).show(request, filters, format)
 
 
 # deep collection resource
-class People(api.ModelCollectionResource):
-    class Meta:
+class People(api.ModelCollection, Person):
+    class Meta(Person.Meta):
         route = '/organizations/<org:s>/people'
-        queryset = organization.Person.objects.all()
             
     # shows how you could customize the args or do other wacky things
     # 
@@ -66,17 +77,4 @@ class People(api.ModelCollectionResource):
     def show(self, request, filters, format):
         organization, filters = api.utils.extract('org', filters)
         filters['organization__name'] = organization.upper()
-        return super(People, self).show(request, filters, format)
-
-
-# deep model resource
-class Person(People, api.ModelResource):
-    class Meta(People.Meta):
-        route = '/organizations/<organization__name:s>/people/<pk:#>'
-        queryset = organization.Person.objects.all()
-    
-    # hmm, I don't like that this has to happen, though it's a direct
-    # consequence of subclassing from the list resource
-    # -- perhaps just subclassing Meta should be enough?
-    def show(self, request, filters, format):
         return super(People, self).show(request, filters, format)

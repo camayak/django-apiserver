@@ -113,12 +113,6 @@ class Resource(object):
         log.info('Registered ' + route_with_method)    
 
     def __init__(self):
-        base = self.__class__.__bases__[0]
-        if issubclass(base, CollectionResource) and not base in [CollectionResource, ModelCollectionResource]:
-            if not base._meta.detail_resource:
-                print "setting detail_resource on", base, "and my name is", self.__class__
-                base._meta.detail_resource = self
-    
         self._parse_route()
         self.fields = deepcopy(self.base_fields)
     
@@ -950,10 +944,11 @@ class ModelResource(Resource):
         except ObjectDoesNotExist:
             return None
 
-        return obj.__dict__
+        bundle = self.full_dehydrate(obj)
+        return bundle
 
 
-class CollectionResource(Resource):
+class Collection(object):
     # Views.
     # NOTE: STRAIGHT COPY-PASTE FROM TASTYPIE
     # WILL NEED WORK TO CONVERT TO THE NEW ROUTER    
@@ -979,7 +974,7 @@ class CollectionResource(Resource):
         to_be_serialized['objects'] = [self.full_dehydrate(obj=obj) for obj in to_be_serialized['objects']]
         return to_be_serialized
 
-    def update(self, request, **kwargs):
+    def update(self, request, filters, format):
         """
         Replaces a collection of resources with another collection.
         
@@ -1012,7 +1007,7 @@ class CollectionResource(Resource):
         
         return HttpAccepted()
 
-    def create(self, request, **kwargs):
+    def create(self, request, filters, format):
         """
         Creates a new resource/object with the provided data.
         
@@ -1027,7 +1022,7 @@ class CollectionResource(Resource):
         updated_bundle = self.obj_create(bundle, request=request)
         return HttpCreated(location=self.get_resource_uri(updated_bundle))
 
-    def destroy(self, request, **kwargs):
+    def destroy(self, request, filters, format):
         """
         Destroys a collection of resources/objects.
         
@@ -1039,15 +1034,11 @@ class CollectionResource(Resource):
         return HttpAccepted()
 
 
-class ModelCollectionResource(CollectionResource, ModelResource):
-    def get_resource_uri(self, bundle_or_obj):
-        # won't hold up for subclasses, methinks
-        if not self.__class__.__bases__[0] is ModelCollectionResource:
-            return ModelResource.get_resource_uri(self, bundle_or_obj)
-    
-        detail = self._meta.detail_resource
-        if detail:
-            return detail.get_resource_uri(bundle_or_obj)
+class ModelCollection(Collection):
+    def get_resource_uri(self, bundle_or_obj, format=None):
+        for base in self.__class__.__bases__:
+            if issubclass(base, Resource) and base not in [Resource, ModelResource]:
+                return base().get_resource_uri(bundle_or_obj, format)
 
     #def show(self, request, filters, format):
     #    objs = self.obj_get_list(request, filters)

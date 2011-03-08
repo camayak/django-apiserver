@@ -34,7 +34,6 @@ class ResourceOptions(object):
     filtering = {}
     ordering = []
     object_class = None
-    detail_resource = None
     queryset = None
     fields = []
     excludes = []
