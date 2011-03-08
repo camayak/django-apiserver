@@ -39,12 +39,11 @@ What Tastypie lacks
 * The ability to show all possible routes (Tastypie only shows the "base" ones, but sometimes it's useful to get a birds-eye overview.)
 * The ability to specify whether we want HATEOAS behavior or whether we want to include all subresources (handy for quick integrations and exploration)
 * Only fetch specific fields (w/ `Django's qs.only(*fields).only(pk)`) -- though be aware that this could adversely impact cacheability.
-* A way to specify which detail resource should be used when handling related resources (if e.g. multiple ModelResource classes work on the same Person model, each representing part of it -- a model can sometimes be an implementation detail and not always map neatly to a resource)
 * The ability to register either separate resources -or- an entire module.
 * It should have an API explorer out of the box.
 * It should also be autodocumenting, though with ample opportunity to pass in narrative docs as well. (e.g. as document docstrings).
 * PATCH support
-* read-only / calculated / included-from-elsewhere fields (?) w/ errors when people try to change them
+* read-only / calculated / included-from-elsewhere fields (?) w/ errors when people try to change them (Note: tastypie does have read-only fields, but I don't know how they get handled validation- and schema-documentation-wise.)
 * Aggregated data on response times, failed authentication, failed authorization etc. globally, per view and per request.
 
 What we'll forego

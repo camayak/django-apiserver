@@ -81,7 +81,7 @@ def soak_errors(fn):
 
 # we should do this for the default ModelResource, nobody needs to see our internal error message traces
 # -- however, because people can add their own decorators, we have to make sure that this is always the
-# outer wrapper -- so perhaps we need this as a metaclass, or just during __init__
+# outer wrapper -- so we'd need to do this within api.py, when we register the resource.
 @on_error(BaseException, 500, soak_errors)
 class ModelResource(object):
     class FilterSet(api.FilterSet):
@@ -139,7 +139,6 @@ class Account(api.ModelResource):
 # stuff that we'll handle in exactly the same way as Tastypie
 
 class Note(api.ModelResource):
-    # not in class Meta, because this would make it more difficult to do selective overrides
     authentication = FancyAuth()
     authorization = FancyAuthorization()
     validation = Validation()

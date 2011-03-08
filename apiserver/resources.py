@@ -99,13 +99,14 @@ class Resource(object):
 
     def _parse_route(self):
         route = self._meta.route
-        if not route:
+        if route is None:
             self._meta.parsed_route = False
             return
 
         if not isinstance(route, r):
             route = surlex_to_regex(route)
-        route = route.rstrip('/') + '(\.(?P<__format>[\w]+))?$'
+        
+        route = '^' + route + r'(\.(?P<__format>[a-z]+))?$'
         self._meta.parsed_route = route
 
         methods = ", ".join(self.methods.keys())
@@ -946,8 +947,10 @@ class ModelResource(Resource):
 
 class Collection(object):
     # Views.
-    # NOTE: STRAIGHT COPY-PASTE FROM TASTYPIE
-    # WILL NEED WORK TO CONVERT TO THE NEW ROUTER    
+    
+    def get_resource_collection_uri(self, filters={}):
+        return reverse(self.name, kwargs=filters)
+    
     def show(self, request, filters, format):
         """
         Returns a serialized list of resources.
@@ -962,7 +965,7 @@ class Collection(object):
         objects = self.obj_get_list(request, filters)
         sorted_objects = self.apply_sorting(objects, options=request.GET)
         
-        paginator = Paginator(request.GET, sorted_objects, resource_uri=self.get_resource_list_uri(),
+        paginator = Paginator(request.GET, sorted_objects, resource_uri=self.get_resource_collection_uri(filters),
            limit=self._meta.limit)
         to_be_serialized = paginator.page()
         
@@ -1034,7 +1037,15 @@ class ModelCollection(Collection):
     def get_resource_uri(self, bundle_or_obj, format=None):
         for base in self.__class__.__bases__:
             if issubclass(base, Resource) and base not in [Resource, ModelResource]:
-                return base().get_resource_uri(bundle_or_obj, format)
+                return base().get_resource_uri(bundle_or_obj)
+
+
+class TOC(Resource):
+    def show(self, request, filters, format):
+        toc = {}
+        for resource in self._meta.resources:
+            toc[resource.__name__.lower()] = resource().get_resource_collection_uri()
+        return toc
 
 
 # not implemented

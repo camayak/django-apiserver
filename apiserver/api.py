@@ -1,8 +1,8 @@
 # encoding: utf-8
 
 import inspect
+import types
 from django.conf.urls.defaults import patterns, url, include
-from resources import Resource
 
 
 # original imports in tastypie.api
@@ -10,11 +10,11 @@ import warnings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse
-from tastypie.exceptions import NotRegistered
-from tastypie.serializers import Serializer
-from tastypie.utils import trailing_slash, is_valid_jsonp_callback_value
-from tastypie.utils.mime import determine_format, build_content_type
-
+from apiserver.exceptions import NotRegistered
+from apiserver.serializers import Serializer
+from apiserver.utils import trailing_slash, is_valid_jsonp_callback_value
+from apiserver.utils.mime import determine_format, build_content_type
+from apiserver.resources import Resource
 
 class API(object):
     def __init__(self, version):
@@ -30,9 +30,21 @@ class API(object):
         resource being registered is the canonical variant. Defaults to
         ``True``.
         """
-        resources = [obj for name, obj in inspect.getmembers(module)
-            if inspect.isclass(obj)
-            and issubclass(obj, Resource)]
+        
+        if isinstance(module, dict):
+            resources = module.values()
+        elif isinstance(module, list):
+            resources = module
+        elif isinstance(module, types.ModuleType):
+            resources = [obj for name, obj in inspect.getmembers(module)
+                if inspect.isclass(obj)
+                and issubclass(obj, Resource)]
+        elif issubclass(module, Resource):
+            resources = [module]
+        else:
+            raise Exception("API can only register dictionaries, lists, modules or individual resources.")
+        
+        
             
         for resource in resources:
             instance = resource()

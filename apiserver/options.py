@@ -40,6 +40,9 @@ class ResourceOptions(object):
     include_resource_uri = True
     include_absolute_url = False
     
+    # only applies to TOC resource
+    resources = []
+    
     # only here for compatibility / deprecated
     api_name = None
     

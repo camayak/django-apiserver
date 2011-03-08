@@ -47,6 +47,7 @@ class Organization(api.ModelResource):
         route = '/organizations/<name:s>'
         queryset = organization.Organization.objects.all()
 
+
 # collection resource
 class Organizations(api.ModelCollection, Organization):
     class Meta(Organization.Meta):
