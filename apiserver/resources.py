@@ -178,7 +178,7 @@ class Resource(object):
             
             options['callback'] = callback
         
-        return self.serializer.serialize(data, format, options)
+        return self._meta.serializer.serialize(data, format, options)
     
     def deserialize(self, request, data, format='application/json'):
         """
@@ -189,7 +189,7 @@ class Resource(object):
         
         Mostly a hook, this uses the ``Serializer`` from ``Resource._meta``.
         """
-        return self.serializer.deserialize(data, format=request.META.get('CONTENT_TYPE', 'application/json'))
+        return self._meta.serializer.deserialize(data, format=request.META.get('CONTENT_TYPE', 'application/json'))
 
     def dispatch(self, request, **kwargs):            
         """

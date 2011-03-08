@@ -6,4 +6,4 @@ from apiserver.utils.urls import trailing_slash
 from apiserver.utils.validate_jsonp import is_valid_jsonp_callback_value
 from apiserver.utils.timer import timed
 from apiserver.utils.mime import determine_format, build_content_type
-from apiserver.utils.traversal import traverse
+from apiserver.utils.objects import traverse, extract

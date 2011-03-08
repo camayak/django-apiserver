@@ -48,19 +48,13 @@ class Organization(api.ModelResource):
 
 
 # collection resource
-class Organizations(Organization, api.CollectionResource):
+class Organizations(Organization, api.ModelCollectionResource):
     class Meta(Organization.Meta):
         route = '/organizations'
 
 
-def transform(filters, old, new, fn):
-    filters[new] = fn(filters[old])
-    del filters[old]
-    return filters
-
-
 # deep collection resource
-class People(api.CollectionResource):
+class People(api.ModelCollectionResource):
     class Meta:
         route = '/organizations/<org:s>/people'
         queryset = organization.Person.objects.all()
@@ -70,7 +64,8 @@ class People(api.CollectionResource):
     # this example transforms the filter args, and uppercases the org name
     # before handing it off
     def show(self, request, filters, format):
-        filters = transform(filters, 'org', 'organization__name', lambda name: name.upper())
+        organization, filters = api.utils.extract(filters, 'org')
+        filters['organization__name'] = organization.upper()
         return super(People, self).show(request, filters, format)
 
 
@@ -86,6 +81,7 @@ class Person(People, api.ModelResource):
     # like tastypie, easily overridable by just overloading
     # get_resource_uri
     def show(self, request, filters, format):
-        representation = super(Person, self).show(request, filters, format)
-        representation['uri'] = self.get_resource_uri(self.obj_get(filters=filters), format)
+        representation = api.ModelResource.show(self, request, filters, format)
+        obj = self.obj_get(filters=filters)
+        representation['uri'] = self.get_resource_uri(obj, format)
         return representation
