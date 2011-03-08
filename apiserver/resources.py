@@ -13,6 +13,7 @@ from surlex import surlex_to_regex
 
 from tastypie import resources as tastypie
 from apiserver import bundle, dispatch, serializers, utils, options
+from apiserver.paginator import Paginator
 from apiserver.fields import *
 
 try:
@@ -377,7 +378,7 @@ class Resource(object):
 
     # TODO
     def get_resource_list_uri(self):
-        raise NotImplementedError()
+        return ''
 
     # NEEDS WORK (c&p from tastypie)
     def get_via_uri(self, uri):
@@ -555,7 +556,7 @@ class Resource(object):
         
         return object_list
     
-    def obj_get_list(self, request=None, **kwargs):
+    def obj_get_list(self, request=None, filters={}):
         """
         Fetches the list of objects available on the resource.
         
@@ -566,16 +567,16 @@ class Resource(object):
         """
         raise NotImplementedError()
     
-    def cached_obj_get_list(self, request=None, **kwargs):
+    def cached_obj_get_list(self, request=None, filters={}):
         """
         A version of ``obj_get_list`` that uses the cache as a means to get
         commonly-accessed data faster.
         """
-        cache_key = self.generate_cache_key('list', **kwargs)
+        cache_key = self.generate_cache_key('list', filters)
         obj_list = self._meta.cache.get(cache_key)
         
         if obj_list is None:
-            obj_list = self.obj_get_list(request=request, **kwargs)
+            obj_list = self.obj_get_list(request, filters)
             self._meta.cache.set(cache_key, obj_list)
         
         return obj_list
@@ -592,21 +593,21 @@ class Resource(object):
         """
         raise NotImplementedError()
     
-    def cached_obj_get(self, request=None, **kwargs):
+    def cached_obj_get(self, request=None, filters={}):
         """
         A version of ``obj_get`` that uses the cache as a means to get
         commonly-accessed data faster.
         """
-        cache_key = self.generate_cache_key('detail', **kwargs)
+        cache_key = self.generate_cache_key('detail', filters)
         bundle = self._meta.cache.get(cache_key)
         
         if bundle is None:
-            bundle = self.obj_get(request=request, **kwargs)
+            bundle = self.obj_get(request, filters)
             self._meta.cache.set(cache_key, bundle)
         
         return bundle
     
-    def obj_create(self, bundle, request=None, **kwargs):
+    def obj_create(self, bundle, request=None, filters={}):
         """
         Creates a new object based on the provided data.
         
@@ -617,7 +618,7 @@ class Resource(object):
         """
         raise NotImplementedError()
     
-    def obj_update(self, bundle, request=None, **kwargs):
+    def obj_update(self, bundle, request=None, filters={}):
         """
         Updates an existing object (or creates a new object) based on the
         provided data.
@@ -629,7 +630,7 @@ class Resource(object):
         """
         raise NotImplementedError()
     
-    def obj_delete_list(self, request=None, **kwargs):
+    def obj_delete_list(self, request=None, filters={}):
         """
         Deletes an entire list of objects.
         
@@ -640,7 +641,7 @@ class Resource(object):
         """
         raise NotImplementedError()
     
-    def obj_delete(self, request=None, **kwargs):
+    def obj_delete(self, request=None, filters={}):
         """
         Deletes a single object.
         
@@ -687,9 +688,8 @@ class Resource(object):
         raise NotImplementedError()
 
     # Views.
-    # NOTE: STRAIGHT COPY-PASTE FROM TASTYPIE
-    # WILL NEED WORK TO CONVERT TO THE NEW ROUTER
-    def show(self, request, **kwargs):
+
+    def show(self, request, filters, format):
         """
         Returns a single serialized resource.
         
@@ -699,7 +699,7 @@ class Resource(object):
         Should return a HttpResponse (200 OK).
         """
         try:
-            obj = self.cached_obj_get(request=request, **self.remove_api_resource_names(kwargs))
+            obj = self.cached_obj_get(request, filters)
         except ObjectDoesNotExist:
             return HttpGone()
         except MultipleObjectsReturned:
@@ -708,7 +708,7 @@ class Resource(object):
         bundle = self.full_dehydrate(obj)
         return self.create_response(request, bundle)
 
-    def update(self, request, **kwargs):
+    def update(self, request, filters, format):
         """
         Either updates an existing resource or creates a new one with the
         provided data.
@@ -719,18 +719,18 @@ class Resource(object):
         If a new resource is created, return ``HttpCreated`` (201 Created).
         If an existing resource is modified, return ``HttpAccepted`` (204 No Content).
         """
-        deserialized = self.deserialize(request, request.raw_post_data, format=request.META.get('CONTENT_TYPE', 'application/json'))
+        deserialized = self.deserialize(request, request.raw_post_data, format=format)
         bundle = self.build_bundle(data=dict_strip_unicode_keys(deserialized))
         self.is_valid(bundle, request)
         
         try:
-            updated_bundle = self.obj_update(bundle, request=request, pk=kwargs.get('pk'))
+            updated_bundle = self.obj_update(bundle, request=request, pk=filters.get('pk'))
             return HttpAccepted()
         except:
-            updated_bundle = self.obj_create(bundle, request=request, pk=kwargs.get('pk'))
+            updated_bundle = self.obj_create(bundle, request=request, pk=filters.get('pk'))
             return HttpCreated(location=self.get_resource_uri(updated_bundle))
 
-    def create(self, request, **kwargs):
+    def create(self, request, filters, format):
         """
         Creates a new subcollection of the resource under a resource.
         
@@ -741,7 +741,7 @@ class Resource(object):
         """
         return HttpNotImplemented()
 
-    def destroy(self, request, **kwargs):
+    def destroy(self, request, filters, format):
         """
         Destroys a single resource/object.
         
@@ -751,7 +751,7 @@ class Resource(object):
         If the resource did not exist, return ``HttpGone`` (410 Gone).
         """
         try:
-            self.obj_delete(request=request, **self.remove_api_resource_names(kwargs))
+            self.obj_delete(request, filters)
             return HttpAccepted()
         except NotFound:
             return HttpGone()
@@ -956,7 +956,7 @@ class CollectionResource(Resource):
     # NOTE: STRAIGHT COPY-PASTE FROM TASTYPIE
     # WILL NEED WORK TO CONVERT TO THE NEW ROUTER
     
-    def show(self, request, **kwargs):
+    def show(self, request, filters, format):
         """
         Returns a serialized list of resources.
         
@@ -967,7 +967,7 @@ class CollectionResource(Resource):
         """
         # TODO: Uncached for now. Invalidation that works for everyone may be
         #       impossible.
-        objects = self.obj_get_list(request=request, **self.remove_api_resource_names(kwargs))
+        objects = self.obj_get_list(request, filters)
         sorted_objects = self.apply_sorting(objects, options=request.GET)
         
         paginator = Paginator(request.GET, sorted_objects, resource_uri=self.get_resource_list_uri(),
@@ -976,7 +976,7 @@ class CollectionResource(Resource):
         
         # Dehydrate the bundles in preparation for serialization.
         to_be_serialized['objects'] = [self.full_dehydrate(obj=obj) for obj in to_be_serialized['objects']]
-        return self.create_response(request, to_be_serialized)
+        return to_be_serialized
 
     def update(self, request, **kwargs):
         """
@@ -1038,10 +1038,11 @@ class CollectionResource(Resource):
         return HttpAccepted()
 
 
-class ModelCollectionResource(ModelResource):
-    def show(self, request, filters, format):
-        objs = self.obj_get_list(request, filters)
-        return [obj.__dict__ for obj in objs]
+class ModelCollectionResource(CollectionResource, ModelResource):
+    pass
+    #def show(self, request, filters, format):
+    #    objs = self.obj_get_list(request, filters)
+    #    return [obj.__dict__ for obj in objs]
 
 
 # Based off of ``piston.utils.coerce_put_post``. Similarly BSD-licensed.
