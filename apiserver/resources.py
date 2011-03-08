@@ -113,7 +113,9 @@ class Resource(object):
         log.info('Registered ' + route_with_method)    
 
     def __init__(self):
+        # route regex
         self._parse_route()
+        # fields
         self.fields = deepcopy(self.base_fields)
     
     def __getattr__(self, name):
@@ -123,10 +125,7 @@ class Resource(object):
 
     @property
     def name(self):
-        path = self.__class__.__module__ + '.' + self.__class__.__name__
-        # with dots, Django would interpret this as a reference
-        # to an actual view function, which it isn't
-        return path.replace(".", "-")
+        return self.__class__.__name__
 
     @property
     def methods(self):
@@ -500,9 +499,9 @@ class Resource(object):
         try:
             return self.get_resource_uri(bundle, format)
         except NotImplementedError:
-            return ''
+            return None
         except NoReverseMatch:
-            return ''
+            return None
     
     def generate_cache_key(self, *args, **kwargs):
         """
@@ -888,8 +887,13 @@ class ModelResource(Resource):
             del filters["__format"]
         for attr in filters:
             filters[attr] = utils.traverse(obj, attr)  
-        
-        return reverse(self.name, kwargs=filters) + format
+
+        try:
+            return reverse(self.name, kwargs=filters) + format
+        except NotImplementedError:
+            return None
+        except NoReverseMatch:
+            return None
 
     def get_object_list(self, request):
         """
@@ -899,11 +903,10 @@ class ModelResource(Resource):
         overrides.
         """
         base_object_list = self._meta.queryset
-        return base_object_list
         
         # Limit it as needed.
-        #authed_object_list = self.apply_authorization_limits(request, base_object_list)
-        #return authed_object_list
+        authed_object_list = self.apply_authorization_limits(request, base_object_list)
+        return authed_object_list
 
     def obj_get_list(self, request=None, filters={}):       
         try:

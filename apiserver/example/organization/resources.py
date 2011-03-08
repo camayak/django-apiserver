@@ -28,8 +28,7 @@ class Message(api.Resource):
     class Meta:
         route = '/messages/<name:s>'
     
-    def show(self, request, **kwargs):
-        print kwargs
+    def show(self, request, filters, format):
         return {"message": ["hello there", "cowboy"]}
 
 
@@ -61,12 +60,6 @@ class Person(api.ModelResource):
     class Meta:
         route = '/organizations/<organization__name:s>/people/<pk:#>'
         queryset = organization.Person.objects.all()
-    
-    # hmm, I don't like that this has to happen, though it's a direct
-    # consequence of subclassing from the list resource
-    # -- perhaps just subclassing Meta should be enough?
-    def show(self, request, filters, format):
-        return super(Person, self).show(request, filters, format)
 
 
 # deep collection resource
