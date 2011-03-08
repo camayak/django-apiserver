@@ -42,6 +42,8 @@ class Everybody(api.ModelResource):
 
 # model resource
 class Organization(api.ModelResource):
+    people = api.fields.ToManyField('organization.resources.Person', 'people')
+
     class Meta:
         route = '/organizations/<name:s>'
         queryset = organization.Organization.objects.all()
@@ -54,6 +56,8 @@ class Organizations(api.ModelCollection, Organization):
 
 # deep model resource
 class Person(api.ModelResource):
+    organization = api.fields.ToOneField(Organization, 'organization')
+
     class Meta:
         route = '/organizations/<organization__name:s>/people/<pk:#>'
         queryset = organization.Person.objects.all()

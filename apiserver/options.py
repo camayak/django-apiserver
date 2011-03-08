@@ -40,6 +40,9 @@ class ResourceOptions(object):
     include_resource_uri = True
     include_absolute_url = False
     
+    # only here for compatibility / deprecated
+    api_name = None
+    
     def __new__(cls, meta=None):
         overrides = {}
         
