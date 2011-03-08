@@ -348,7 +348,7 @@ class Resource(object):
         """
         return obj_list
 
-    def get_resource_uri(self, bundle_or_obj):
+    def get_resource_uri(self, bundle_or_obj, format):
         """
         This needs to be implemented at the user level.
         
@@ -383,7 +383,7 @@ class Resource(object):
 
     # Data preparation.
     
-    def full_dehydrate(self, obj):
+    def full_dehydrate(self, obj, format):
         """
         Given an object instance, extract the information from it to populate
         the resource.
@@ -403,12 +403,12 @@ class Resource(object):
             method = getattr(self, "dehydrate_%s" % field_name, None)
             
             if method:
-                bundle.data[field_name] = method(bundle)
+                bundle.data[field_name] = method(bundle, format)
         
-        bundle = self.dehydrate(bundle)
+        bundle = self.dehydrate(bundle, format)
         return bundle
     
-    def dehydrate(self, bundle):
+    def dehydrate(self, bundle, format):
         """
         A hook to allow a final manipulation of data once all fields/methods
         have built out the dehydrated data.
@@ -490,7 +490,7 @@ class Resource(object):
         
         return bundle
 
-    def dehydrate_resource_uri(self, bundle):
+    def dehydrate_resource_uri(self, bundle, format):
         """
         For the automatically included ``resource_uri`` field, dehydrate
         the URI for the given bundle.
@@ -498,7 +498,7 @@ class Resource(object):
         Returns empty string if no URI can be generated.
         """
         try:
-            return self.get_resource_uri(bundle)
+            return self.get_resource_uri(bundle, format)
         except NotImplementedError:
             return ''
         except NoReverseMatch:
@@ -690,8 +690,8 @@ class Resource(object):
         except MultipleObjectsReturned:
             return HttpMultipleChoices("More than one resource is found at this URI.")
         
-        bundle = self.full_dehydrate(obj)
-        return self.create_response(request, bundle)
+        bundle = self.full_dehydrate(obj, format)
+        return bundle
 
     def update(self, request, filters, format):
         """
@@ -713,7 +713,7 @@ class Resource(object):
             return HttpAccepted()
         except:
             updated_bundle = self.obj_create(bundle, request, pk=filters.get('pk'))
-            return HttpCreated(location=self.get_resource_uri(updated_bundle))
+            return HttpCreated(location=self.get_resource_uri(updated_bundle, format))
 
     def create(self, request, filters, format):
         """
@@ -814,13 +814,6 @@ class ModelResource(Resource):
             result = IntegerField
         elif f.get_internal_type() in ('FileField', 'ImageField'):
             result = FileField
-        # TODO: Perhaps enable these via introspection. The reason they're not enabled
-        #       by default is the very different ``__init__`` they have over
-        #       the other fields.
-        # elif f.get_internal_type() == 'ForeignKey':
-        #     result = ForeignKey
-        # elif f.get_internal_type() == 'ManyToManyField':
-        #     result = ManyToManyField
     
         return result
     
@@ -944,7 +937,7 @@ class ModelResource(Resource):
         except ObjectDoesNotExist:
             return None
 
-        bundle = self.full_dehydrate(obj)
+        bundle = self.full_dehydrate(obj, format)
         return bundle
 
 
@@ -971,7 +964,7 @@ class Collection(object):
         to_be_serialized = paginator.page()
         
         # Dehydrate the bundles in preparation for serialization.
-        to_be_serialized['objects'] = [self.full_dehydrate(obj=obj) for obj in to_be_serialized['objects']]
+        to_be_serialized['objects'] = [self.full_dehydrate(obj, format) for obj in to_be_serialized['objects']]
         return to_be_serialized
 
     def update(self, request, filters, format):
@@ -1020,7 +1013,7 @@ class Collection(object):
         bundle = self.build_bundle(data=utils.dict_strip_unicode_keys(deserialized))
         self.is_valid(bundle, request)
         updated_bundle = self.obj_create(bundle, request)
-        return HttpCreated(location=self.get_resource_uri(updated_bundle))
+        return HttpCreated(location=self.get_resource_uri(updated_bundle, format))
 
     def destroy(self, request, filters, format):
         """
