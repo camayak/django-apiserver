@@ -40,17 +40,17 @@ class Everybody(api.ModelResource):
         queryset = organization.Person.objects.all()
 
 
-# model resource
-class Organization(api.ModelResource):
+# collection resource
+class Organizations(api.ModelCollectionResource):
     class Meta:
-        route = '/organizations/<name:s>'
+        route = '/organizations'
         queryset = organization.Organization.objects.all()
 
 
-# collection resource
-class Organizations(Organization, api.ModelCollectionResource):
-    class Meta(Organization.Meta):
-        route = '/organizations'
+# model resource
+class Organization(Organizations, api.ModelResource):
+    class Meta(Organizations.Meta):
+        route = '/organizations/<name:s>'
 
 
 # deep collection resource
@@ -64,24 +64,19 @@ class People(api.ModelCollectionResource):
     # this example transforms the filter args, and uppercases the org name
     # before handing it off
     def show(self, request, filters, format):
-        organization, filters = api.utils.extract(filters, 'org')
+        organization, filters = api.utils.extract('org', filters)
         filters['organization__name'] = organization.upper()
         return super(People, self).show(request, filters, format)
 
 
 # deep model resource
-# this one inherits the other way around (from list to detail instead of from detail to list)
-# which works just as well
 class Person(People, api.ModelResource):
     class Meta(People.Meta):
         route = '/organizations/<organization__name:s>/people/<pk:#>'
         queryset = organization.Person.objects.all()
-
-    # resource URI test -- see apiserver.resources for implementation;
-    # like tastypie, easily overridable by just overloading
-    # get_resource_uri
+    
+    # hmm, I don't like that this has to happen, though it's a direct
+    # consequence of subclassing from the list resource
+    # -- perhaps just subclassing Meta should be enough?
     def show(self, request, filters, format):
-        representation = api.ModelResource.show(self, request, filters, format)
-        obj = self.obj_get(filters=filters)
-        representation['uri'] = self.get_resource_uri(obj, format)
-        return representation
+        return super(People, self).show(request, filters, format)

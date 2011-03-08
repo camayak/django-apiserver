@@ -7,7 +7,7 @@ import re
 from django.conf.urls.defaults import patterns, url
 from django.http import HttpResponse
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.urlresolvers import reverse
+from django.core.urlresolvers import reverse, NoReverseMatch
 
 from surlex import surlex_to_regex
 
@@ -97,13 +97,12 @@ class Resource(object):
     """
     __metaclass__ = DeclarativeMetaclass
 
-    def __init__(self, api_name=None):
-        self.fields = deepcopy(self.base_fields)
- 
+    def _parse_route(self):
         route = self._meta.route
         if not route:
-            route = ''
-        #    raise Exception("Can't have a resource without a route")
+            self._meta.parsed_route = False
+            return
+
         if not isinstance(route, r):
             route = surlex_to_regex(route)
         route = route.rstrip('/') + '(\.(?P<__format>[\w]+))?$'
@@ -111,7 +110,17 @@ class Resource(object):
 
         methods = ", ".join(self.methods.keys())
         route_with_method = '{0} {1}'.format(methods, self._meta.route)
-        log.info('Registered ' + route_with_method)
+        log.info('Registered ' + route_with_method)    
+
+    def __init__(self):
+        base = self.__class__.__bases__[0]
+        if issubclass(base, CollectionResource) and not base in [CollectionResource, ModelCollectionResource]:
+            if not base._meta.detail_resource:
+                print "setting detail_resource on", base, "and my name is", self.__class__
+                base._meta.detail_resource = self
+    
+        self._parse_route()
+        self.fields = deepcopy(self.base_fields)
     
     def __getattr__(self, name):
         if name in self.fields:
@@ -231,24 +240,6 @@ class Resource(object):
         
         return response
         """
-
-    def show(self, request, filters, format):
-        pass
-    
-    def create(self, request, filters, format):
-        pass
-
-    def update(self, request, filters, format):
-        pass
-
-    def destroy(self, request, filters, format):
-        pass
-
-    def options(self, request, filters, format):
-        pass
-        
-    def patch(self, request, filters, format):
-        pass
 
     def method_check(self, request, allowed=None):
         """
@@ -756,6 +747,12 @@ class Resource(object):
         except NotFound:
             return HttpGone()
 
+    def options(self, request, format):
+        raise NotImplementedError()
+    
+    def patch(self, request, filters, format):
+        raise NotImplementedError()
+
 class ModelDeclarativeMetaclass(DeclarativeMetaclass):
     def __new__(cls, name, bases, attrs):
         meta = attrs.get('Meta')
@@ -888,7 +885,12 @@ class ModelResource(Resource):
         
         return final_fields
 
-    def get_resource_uri(self, obj, format=None):
+    def get_resource_uri(self, bundle_or_obj, format=None):    
+        if isinstance(bundle_or_obj, bundle.Bundle):
+            obj = bundle_or_obj.obj
+        else:
+            obj = bundle_or_obj
+        
         if format:
             format = '.' + format
         else:
@@ -954,8 +956,7 @@ class ModelResource(Resource):
 class CollectionResource(Resource):
     # Views.
     # NOTE: STRAIGHT COPY-PASTE FROM TASTYPIE
-    # WILL NEED WORK TO CONVERT TO THE NEW ROUTER
-    
+    # WILL NEED WORK TO CONVERT TO THE NEW ROUTER    
     def show(self, request, filters, format):
         """
         Returns a serialized list of resources.
@@ -1039,7 +1040,15 @@ class CollectionResource(Resource):
 
 
 class ModelCollectionResource(CollectionResource, ModelResource):
-    pass
+    def get_resource_uri(self, bundle_or_obj):
+        # won't hold up for subclasses, methinks
+        if not self.__class__.__bases__[0] is ModelCollectionResource:
+            return ModelResource.get_resource_uri(self, bundle_or_obj)
+    
+        detail = self._meta.detail_resource
+        if detail:
+            return detail.get_resource_uri(bundle_or_obj)
+
     #def show(self, request, filters, format):
     #    objs = self.obj_get_list(request, filters)
     #    return [obj.__dict__ for obj in objs]

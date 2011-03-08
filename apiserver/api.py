@@ -36,7 +36,10 @@ class API(object):
             
         for resource in resources:
             instance = resource()
-            self.patterns.append(url(instance._meta.parsed_route, instance.dispatch, name=instance.name))
+            # in special cases, specifically when somebody needs a detail view
+            # but not a collection view, a resource can be routeless
+            if instance._meta.parsed_route:
+                self.patterns.append(url(instance._meta.parsed_route, instance.dispatch, name=instance.name))
 
         self.urlconf += patterns('', (self.version, include(self.patterns)))
 
