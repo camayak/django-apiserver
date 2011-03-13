@@ -54,6 +54,15 @@ class Organizations(api.ModelCollection, Organization):
         route = '/organizations'
 
 
+# here solely to test OPTIONS
+@api.only("show", "destroy")
+class OrganizationsOptions(Organizations):
+    class Meta(Organizations.Meta):
+        route = '/organization_options'
+
+    def show(self, request, filters, format):
+        return Organizations.options(self, request, filters, format)
+
 # deep model resource
 class Person(api.ModelResource):
     organization = api.fields.ToOneField(Organization, 'organization')

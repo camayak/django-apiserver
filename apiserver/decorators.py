@@ -1,7 +1,9 @@
 # encoding: utf-8
 
+import types
 from functools import wraps
 from django.http import HttpResponse
+from django.conf import settings
 
 class on_view(object):
     def __init__(self, fn):
@@ -10,8 +12,8 @@ class on_view(object):
     def decorate_fn(self, fn):
         return wraps(self.wrapper(fn))
         
-    def decorate_cls(self, cls):
-        for name in cls.methods:
+    def decorate_cls(self, cls):    
+        for name in cls.method_mapping.values():
             if hasattr(cls, name):
                 method = getattr(cls, name)
                 setattr(cls, name, self.decorate_fn(method))
@@ -22,6 +24,10 @@ class on_view(object):
             return self.decorate_fn(obj)
         else:
             return self.decorate_cls(obj)
+
+canned_error = {
+    "error": getattr(settings, "APISERVER_CANNED_ERROR", "Sorry, this request could not be processed. This is usually not your fault. Please try again later.")
+    }
 
 class on_error(on_view):
     """
@@ -38,22 +44,23 @@ class on_error(on_view):
     """
     
     def __init__(self, *vargs):
-        if instanceof(vargs[-1], FunctionType):
+        vargs = list(vargs)
+        if isinstance(vargs[-1], types.FunctionType):
             self.message = vargs.pop()
             self.status = vargs.pop()
         else:
-            self.message = lambda: ''
+            self.message = lambda *vargs, **kwargs: canned_error
             self.status = vargs.pop()
         
-        self.exceptions = vargs
+        self.exceptions = tuple(vargs)
 
     def decorate_fn(self, fn):
         @wraps(fn)
         def safe_fn(*vargs, **kwargs):
             try:
                 return fn(*vargs, **kwargs)
-            except self.exception:
-                HttpResponse(self.message(), status=self.status)
+            except self.exceptions:
+                return self.message(*vargs, **kwargs), self.status
                 
         return safe_fn
 
@@ -70,7 +77,10 @@ class only(on_view):
         self.methods = methods
     
     def decorate_fn(self, fn):
-        if fn.__name__ in self.methods:
+        if fn.__name__ in self.methods + ('options',):
             return fn
         else:
-            return None
+            def wrapped_fn(*vargs, **kwargs):
+                raise NotImplementedError()
+            wrapped_fn.not_implemented = True
+            return wrapped_fn

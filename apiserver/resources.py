@@ -4,6 +4,8 @@ import logging
 import inspect
 import re
 
+from copy import copy
+
 from django.conf.urls.defaults import patterns, url
 from django.http import HttpResponse
 from django.core.exceptions import ObjectDoesNotExist
@@ -97,6 +99,15 @@ class Resource(object):
     """
     __metaclass__ = DeclarativeMetaclass
 
+    method_mapping = {
+        'GET': 'show',
+        'POST': 'create',
+        'PUT': 'update',
+        'DELETE': 'destroy',        
+        'OPTIONS': 'options', 
+        'PATCH': 'patch',   
+        }
+
     def _parse_route(self):
         route = self._meta.route
         if route is None:
@@ -130,14 +141,15 @@ class Resource(object):
 
     @property
     def methods(self):
-        return {
-            'GET': self.show,
-            'POST': self.create,
-            'PUT': self.update,
-            'DELETE': self.destroy,        
-            'OPTIONS': self.options, 
-            'PATCH': self.patch,   
-            }
+        mapping = copy(self.method_mapping)
+        for method, fn in self.method_mapping.items():
+            view = getattr(self, fn)
+            if hasattr(view, 'not_implemented'):
+                del mapping[method]
+            else:
+                mapping[method] = view
+        
+        return mapping
   
     # not decided yet on whether to do this like Tastypie or differently
     def wrap_view(self, view):
@@ -200,11 +212,30 @@ class Resource(object):
         Handles the common operations (allowed HTTP method, authentication,
         throttling, method lookup) surrounding most CRUD interactions.
         """
-        view = self.methods[request.method]
+        if request.method in self.methods:
+            view = self.methods[request.method]
+        else:
+            raise NotImplementedError()
+        
         raw_format, kwargs = utils.extract('__format', kwargs)
-        raw_response = view(request, kwargs, raw_format)
+        retval = view(request, kwargs, raw_format)
+        
+        # views may return a status code in addition to a structured response; 
+        # they may also return just a status code or just a response;
+        # for true customization, we can also deal with a regular HttpResponse
+        if isinstance(retval, tuple):
+            raw_response, status = retval
+        elif isinstance(retval, int):
+            status = retval
+            raw_response = {}
+        elif isinstance(retval, HttpResponse):
+            return retval
+        else:
+            raw_response = retval
+            status = 200
+                    
         format = self.determine_format(request, raw_format)
-        return HttpResponse(self.serialize(request, raw_response, format))
+        return HttpResponse(self.serialize(request, raw_response, format), status=status)
 
         """
         allowed_methods = getattr(self._meta, "%s_allowed_methods" % request_type, None)
@@ -741,8 +772,9 @@ class Resource(object):
         except NotFound:
             return HttpGone()
 
-    def options(self, request, format):
-        raise NotImplementedError()
+    # TODO: needs to return a HttpResponse with a custom Allow header
+    def options(self, request, filters, format):
+        return self.methods.keys()
     
     def patch(self, request, filters, format):
         raise NotImplementedError()
@@ -944,6 +976,18 @@ class ModelResource(Resource):
         bundle = self.full_dehydrate(obj)
         return bundle
 
+    # TODO
+    def update(self, request, filters, format):
+        raise NotImplementedError()
+
+    # creating new resources is an action that only makes sense on 
+    # a collection, not a detail resource (though perhaps we could redirect?)
+    def create(self, request, filters, format):
+        raise NotImplementedError()
+
+    # TODO
+    def destroy(self, request, filters, format):
+        raise NotImplementedError()
 
 class Collection(object):
     # Views.
@@ -951,7 +995,7 @@ class Collection(object):
     def get_resource_collection_uri(self, filters={}):
         return reverse(self.name, kwargs=filters)
     
-    def show(self, request, filters, format):
+    def show(self, request, filters, format):    
         """
         Returns a serialized list of resources.
         

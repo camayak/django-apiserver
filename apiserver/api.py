@@ -2,8 +2,9 @@
 
 import inspect
 import types
-from django.conf.urls.defaults import patterns, url, include
 
+from django.conf import settings
+from django.conf.urls.defaults import patterns, url, include
 
 # original imports in tastypie.api
 import warnings
@@ -12,9 +13,10 @@ from django.core.urlresolvers import reverse
 from django.http import HttpResponse
 from apiserver.exceptions import NotRegistered
 from apiserver.serializers import Serializer
-from apiserver.utils import trailing_slash, is_valid_jsonp_callback_value
+from apiserver.utils import is_valid_jsonp_callback_value
 from apiserver.utils.mime import determine_format, build_content_type
 from apiserver.resources import Resource
+from apiserver import decorators
 
 class API(object):
     def __init__(self, version):
@@ -44,10 +46,15 @@ class API(object):
         else:
             raise Exception("API can only register dictionaries, lists, modules or individual resources.")
         
-        
-            
         for resource in resources:
             instance = resource()
+            
+            # catch all errors that, thus far, haven't been caught
+            if not getattr(settings, 'APISERVER_FULL_DEBUG', False):
+                # TODO: log the full exception somewhere
+                decorators.on_error(NotImplementedError, 501).decorate_cls(instance)
+                decorators.on_error(BaseException, 500).decorate_cls(instance)
+            
             # in special cases, specifically when somebody needs a detail view
             # but not a collection view, a resource can be routeless
             if instance._meta.parsed_route:
