@@ -45,6 +45,7 @@ class ResourceOptions(object):
     
     # only here for compatibility / deprecated
     api_name = None
+    resource_name = ''
     
     def __new__(cls, meta=None):
         overrides = {}
