@@ -8,19 +8,19 @@ from complex.models import Post, Profile
 class ProfileResource(ModelResource):
     class Meta:
         queryset = Profile.objects.all()
-        resource_name = 'profiles'
+        route = '/profiles'
 
 
 class CommentResource(ModelResource):
     class Meta:
         queryset = Comment.objects.all()
-        resource_name = 'comments'
+        route = '/comments'
 
 
 class GroupResource(ModelResource):
     class Meta:
         queryset = Group.objects.all()
-        resource_name = 'groups'
+        route = '/groups'
 
 
 class UserResource(ModelResource):
@@ -29,7 +29,7 @@ class UserResource(ModelResource):
     
     class Meta:
         queryset = User.objects.all()
-        resource_name = 'users'
+        route = '/users'
 
 
 class PostResource(ModelResource):
@@ -38,4 +38,4 @@ class PostResource(ModelResource):
     
     class Meta:
         queryset = Post.objects.all()
-        resource_name = 'posts'
+        route = '/posts'

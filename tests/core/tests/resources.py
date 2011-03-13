@@ -44,7 +44,7 @@ class BasicResource(Resource):
     
     class Meta:
         object_class = TestObject
-        resource_name = 'basic'
+        route = '/basic'
     
     def dehydrate_date_joined(self, bundle):
         if getattr(bundle.obj, 'date_joined', None) is not None:
@@ -68,7 +68,7 @@ class AnotherBasicResource(BasicResource):
     
     class Meta:
         object_class = TestObject
-        resource_name = 'anotherbasic'
+        route = '/anotherbasic'
     
     def dehydrate(self, bundle):
         if hasattr(bundle.obj, 'bar'):
@@ -368,7 +368,7 @@ class ResourceTestCase(TestCase):
             efgh = fields.IntegerField(default=1234)
             
             class Meta:
-                resource_name = 'mini'
+                route = '/mini'
         
         mini = MiniResource()
         self.assertEqual(len(mini.fields), 3)
@@ -377,7 +377,7 @@ class ResourceTestCase(TestCase):
             ijkl = fields.BooleanField(default=True)
             
             class Meta(CommonMeta):
-                resource_name = 'anothermini'
+                route = '/anothermini'
         
         another = AnotherMiniResource()
         self.assertEqual(len(another.fields), 4)
@@ -449,7 +449,7 @@ class ResourceTestCase(TestCase):
 
 class NoteResource(ModelResource):
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         filtering = {
             'content': ['startswith', 'exact'],
             'title': ALL,
@@ -464,7 +464,7 @@ class NoteResource(ModelResource):
 
 class LightlyCustomNoteResource(NoteResource):
     class Meta:
-        resource_name = 'noteish'
+        route = '/noteish'
         allowed_methods = ['get']
         queryset = Note.objects.filter(is_active=True)
 
@@ -472,7 +472,7 @@ class LightlyCustomNoteResource(NoteResource):
 class TinyLimitNoteResource(NoteResource):
     class Meta:
         limit = 3
-        resource_name = 'littlenote'
+        route = '/littlenote'
         allowed_methods = ['get']
         queryset = Note.objects.filter(is_active=True)
 
@@ -483,7 +483,7 @@ class VeryCustomNoteResource(NoteResource):
     
     class Meta:
         limit = 50
-        resource_name = 'notey'
+        route = '/notey'
         serializer = CustomSerializer()
         list_allowed_methods = ['get']
         detail_allowed_methods = ['get', 'post', 'put']
@@ -504,7 +504,7 @@ class DetailedNoteResource(ModelResource):
     hello_world = fields.CharField(default='world')
     
     class Meta:
-        resource_name = 'detailednotes'
+        route = '/detailednotes'
         filtering = {
             'content': ['startswith', 'exact'],
             'title': ALL,
@@ -521,14 +521,14 @@ class DetailedNoteResource(ModelResource):
 
 class ThrottledNoteResource(NoteResource):
     class Meta:
-        resource_name = 'throttlednotes'
+        route = '/throttlednotes'
         queryset = Note.objects.filter(is_active=True)
         throttle = CacheThrottle(throttle_at=2, timeframe=5, expiration=5)
 
 
 class BasicAuthNoteResource(NoteResource):
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.filter(is_active=True)
         authentication = BasicAuthentication()
 
@@ -543,7 +543,7 @@ class WithAbsoluteURLNoteResource(ModelResource):
     class Meta:
         queryset = Note.objects.filter(is_active=True)
         include_absolute_url = True
-        resource_name = 'withabsoluteurlnote'
+        route = '/withabsoluteurlnote'
     
     def get_resource_uri(self, bundle_or_obj):
         return '/api/v1/withabsoluteurlnote/%s/' % bundle_or_obj.obj.id
@@ -552,13 +552,13 @@ class WithAbsoluteURLNoteResource(ModelResource):
 class UserResource(ModelResource):
     class Meta:
         queryset = User.objects.all()
-        resource_name = 'users'
+        route = '/users'
 
 
 class SubjectResource(ModelResource):
     class Meta:
         queryset = Subject.objects.all()
-        resource_name = 'subjects'
+        route = '/subjects'
 
 
 class RelatedNoteResource(ModelResource):
@@ -567,7 +567,7 @@ class RelatedNoteResource(ModelResource):
     
     class Meta:
         queryset = Note.objects.all()
-        resource_name = 'relatednotes'
+        route = '/relatednotes'
         filtering = {
             'author': ALL,
             'subjects': ALL_WITH_RELATIONS,
@@ -581,7 +581,7 @@ class AnotherRelatedNoteResource(ModelResource):
     
     class Meta:
         queryset = Note.objects.all()
-        resource_name = 'relatednotes'
+        route = '/relatednotes'
         filtering = {
             'author': ALL,
             'subjects': ALL_WITH_RELATIONS,
@@ -608,7 +608,7 @@ class PerUserAuthorization(Authorization):
 
 class PerUserNoteResource(NoteResource):
     class Meta:
-        resource_name = 'perusernotes'
+        route = '/perusernotes'
         queryset = Note.objects.all()
         authorization = PerUserAuthorization()
     
@@ -1598,13 +1598,13 @@ class ModelResourceTestCase(TestCase):
         class ValidatedNoteResource(ModelResource):
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'validated'
+                route = '/validated'
                 validation = FormValidation(form_class=NoteForm)
         
         class ValidatedXMLNoteResource(ModelResource):
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'validated'
+                route = '/validated'
                 validation = FormValidation(form_class=NoteForm)
                 default_format = 'application/xml'
         
@@ -1661,7 +1661,7 @@ class ModelResourceTestCase(TestCase):
             
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'me_baby_me'
+                route = '/me_baby_me'
         
         me_baby_me = SelfResource()
         self.assertEqual(len(me_baby_me.fields), 9)
@@ -1672,7 +1672,7 @@ class ModelResourceTestCase(TestCase):
         class AnotherSelfResource(SelfResource):
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'another_me_baby_me'
+                route = '/another_me_baby_me'
         
         another_me_baby_me = AnotherSelfResource()
         self.assertEqual(len(another_me_baby_me.fields), 9)
@@ -1687,7 +1687,7 @@ class ModelResourceTestCase(TestCase):
             
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'mini'
+                route = '/mini'
         
         mini = MiniResource()
         self.assertEqual(len(mini.fields), 10)
@@ -1699,7 +1699,7 @@ class ModelResourceTestCase(TestCase):
             
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'anothermini'
+                route = '/anothermini'
         
         another = AnotherMiniResource()
         self.assertEqual(len(another.fields), 11)
@@ -1711,7 +1711,7 @@ class ModelResourceTestCase(TestCase):
             
             class Meta:
                 queryset = Note.objects.all()
-                resource_name = 'yetanothermini'
+                route = '/yetanothermini'
                 fields = ['title', 'abcd', 'mnop']
                 include_absolute_url = True
         

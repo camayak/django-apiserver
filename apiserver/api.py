@@ -19,20 +19,13 @@ from apiserver.resources import Resource
 from apiserver import decorators
 
 class API(object):
-    def __init__(self, version):
+    def __init__(self, version=''):
         self.urlconf = []
         self.patterns = []
         self.version = '^' + version.rstrip('/')
     
-    def register(self, module):
-        """
-        Registers a ``Resource`` subclass with the API.
-        
-        Optionally accept a ``canonical`` argument, which indicates that the
-        resource being registered is the canonical variant. Defaults to
-        ``True``.
-        """
-        
+    # canonical only for parity with tastypie, doesn't currently do anything
+    def register(self, module, canonical=True):
         if isinstance(module, dict):
             resources = module.values()
         elif isinstance(module, list):

@@ -7,7 +7,7 @@ from basic.models import Note
 
 class UserResource(ModelResource):
     class Meta:
-        resource_name = 'users'
+        route = '/users'
         queryset = User.objects.all()
         authorization = Authorization()
 
@@ -16,6 +16,6 @@ class NoteResource(ModelResource):
     user = fields.ForeignKey(UserResource, 'user')
     
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.all()
         authorization = Authorization()

@@ -6,6 +6,6 @@ from alphanumeric.models import Product
 
 class ProductResource(ModelResource):
     class Meta:
-        resource_name = 'products'
+        route = '/products'
         queryset = Product.objects.all()
         authorization = Authorization()

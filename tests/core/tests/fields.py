@@ -387,7 +387,7 @@ class DateTimeFieldTestCase(TestCase):
 
 class UserResource(ModelResource):
     class Meta:
-        resource_name = 'users'
+        route = '/users'
         queryset = User.objects.all()
     
     def get_resource_uri(self, bundle):
@@ -519,7 +519,7 @@ class ForeignKeyTestCase(TestCase):
 
 class SubjectResource(ModelResource):
     class Meta:
-        resource_name = 'subjects'
+        route = '/subjects'
         queryset = Subject.objects.all()
     
     def get_resource_uri(self, bundle):

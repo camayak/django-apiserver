@@ -3,7 +3,7 @@ from apiserver.api import Api
 from complex.api.resources import PostResource, ProfileResource, CommentResource, UserResource, GroupResource
 
 
-api = Api(api_name='v1')
+api = API(api_name='v1')
 api.register(PostResource(), canonical=True)
 api.register(ProfileResource(), canonical=True)
 api.register(CommentResource(), canonical=True)

@@ -8,21 +8,21 @@ from apiserver.resources import ModelResource
 
 class NoRulesNoteResource(ModelResource):
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.filter(is_active=True)
         authorization = Authorization()
 
 
 class ReadOnlyNoteResource(ModelResource):
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.filter(is_active=True)
         authorization = ReadOnlyAuthorization()
 
 
 class DjangoNoteResource(ModelResource):
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.filter(is_active=True)
         authorization = DjangoAuthorization()
 

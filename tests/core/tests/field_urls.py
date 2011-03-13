@@ -7,7 +7,7 @@ from core.tests.api import Api, UserResource
 
 class SubjectResource(ModelResource):
     class Meta:
-        resource_name = 'subjects'
+        route = '/subjects'
         queryset = Subject.objects.all()
 
 
@@ -16,11 +16,11 @@ class CustomNoteResource(ModelResource):
     subjects = fields.ManyToManyField(SubjectResource, 'subjects')
     
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.all()
 
 
-api = Api(api_name='v1')
+api = API(api_name='v1')
 api.register(CustomNoteResource())
 api.register(UserResource())
 api.register(SubjectResource())

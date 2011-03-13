@@ -9,7 +9,7 @@ from core.models import Note
 
 class NoteResource(ModelResource):
     class Meta:
-        resource_name = 'notes'
+        route = '/notes'
         queryset = Note.objects.filter(is_active=True)
 
 
