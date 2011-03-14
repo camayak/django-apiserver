@@ -3,6 +3,8 @@
 import apiserver as api
 from organization import models as organization
 
+import django_filters as filters
+
 """
 Visit these URLs to see how it works:
 - /organizations.json 
@@ -50,6 +52,11 @@ class Organization(api.ModelResource):
 
 # collection resource
 class Organizations(api.ModelCollection, Organization):
+    class FilterSet(filters.FilterSet):
+        class Meta:
+            model = organization.Organization
+            fields = ['name']
+
     class Meta(Organization.Meta):
         route = '/organizations'
 

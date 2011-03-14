@@ -7,13 +7,14 @@ import re
 from copy import copy
 
 from django.conf.urls.defaults import patterns, url
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpResponseRedirect
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse, NoReverseMatch
 
 from surlex import surlex_to_regex
-
+import django_filters as filters
 from tastypie import resources as tastypie
+
 from apiserver import bundle, dispatch, serializers, utils, options
 from apiserver.paginator import Paginator
 from apiserver.fields import *
@@ -356,7 +357,7 @@ class Resource(object):
         """
         Allows for the filtering of applicable objects.
         
-        This needs to be implemented at the user level.'
+        This needs to be implemented at the user level.
         
         ``ModelResource`` includes a full working version specific to Django's
         ``Models``.
@@ -758,14 +759,14 @@ class Resource(object):
         
         Calls ``obj_delete``.
         
-        If the resource is deleted, return ``HttpAccepted`` (204 No Content).
-        If the resource did not exist, return ``HttpGone`` (410 Gone).
+        If the resource is deleted, return 204 No Content.
+        If the resource did not exist, return 404 Not found.
         """
         try:
             self.obj_delete(request, filters)
-            return HttpAccepted()
+            return 202
         except NotFound:
-            return HttpGone()
+            return 404
 
     # TODO: needs to return a HttpResponse with a custom Allow header
     def options(self, request, filters, raw_format):
@@ -940,11 +941,19 @@ class ModelResource(Resource):
         authed_object_list = self.apply_authorization_limits(request, base_object_list)
         return authed_object_list
 
-    def obj_get_list(self, request=None, filters={}):       
+    def obj_get_list(self, request=None, filters={}):
+        # apply URI-based filters
         try:
-            return self.get_object_list(request).filter(**filters)
+            qs = self.get_object_list(request).filter(**filters)
         except ValueError, e:
             raise NotFound("Invalid resource lookup data provided (mismatched type).")
+    
+        # apply querystring-based filters (doesn't currently work)
+        if hasattr(self, 'FilterSet'):      
+            filterset = self.FilterSet(request.GET, queryset=qs)
+            qs = filterset.qs
+    
+        return qs
     
     def obj_get(self, request=None, filters={}):
         """
@@ -980,9 +989,13 @@ class ModelResource(Resource):
         raise NotImplementedError()
 
     # creating new resources is an action that only makes sense on 
-    # a collection, not a detail resource (though perhaps we could redirect?)
+    # a collection, not a detail resource
     def create(self, request, filters, format):
-        raise NotImplementedError()
+        # TODO: yet to work in the 'collection' attribute
+        if hasattr(self._meta, 'collection'):
+            return HttpResponseRedirect(collection.get_resource_collection_uri(filters))
+        else:
+            raise NotImplementedError()
 
     # TODO
     def destroy(self, request, filters, format):
@@ -1003,13 +1016,13 @@ class Collection(object):
         
         Should return a HttpResponse (200 OK).
         """
-        # TODO: Uncached for now. Invalidation that works for everyone may be
-        #       impossible.
+        # TODO: Uncached for now. Invalidation that works for everyone
+        # may be impossible.
         objects = self.obj_get_list(request, filters)
         sorted_objects = self.apply_sorting(objects, options=request.GET)
         
-        paginator = Paginator(request.GET, sorted_objects, resource_uri=self.get_resource_collection_uri(filters),
-           limit=self._meta.limit)
+        uri = self.get_resource_collection_uri(filters)
+        paginator = Paginator(request.GET, sorted_objects, resource_uri=uri, limit=self._meta.limit)
         to_be_serialized = paginator.page()
         
         # Dehydrate the bundles in preparation for serialization.
@@ -1028,7 +1041,7 @@ class Collection(object):
         deserialized = self.deserialize(request, request.raw_post_data, format=request.META.get('CONTENT_TYPE', 'application/json'))
         
         if not 'objects' in deserialized:
-            raise BadRequest("Invalid data sent.")
+            raise {"error": "Invalid data sent."}, 400
         
         self.obj_delete_list(request, filters)
         bundles_seen = []
