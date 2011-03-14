@@ -94,6 +94,7 @@ class Resource(object):
     __metaclass__ = DeclarativeMetaclass
 
     method_mapping = {
+        'HEAD': 'show',
         'GET': 'show',
         'POST': 'create',
         'PUT': 'update',
@@ -771,7 +772,7 @@ class Resource(object):
         format = self.determine_format(request, raw_format)
         content = self.serialize(request, self.methods.keys(), format)
         response = HttpResponse(content)
-        response['Allow'] = "; ".join(self.method.keys())
+        response['Allow'] = ", ".join(self.methods.keys())
         return response
     
     def patch(self, request, filters, format):
