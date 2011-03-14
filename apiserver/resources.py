@@ -711,9 +711,9 @@ class Resource(object):
         try:
             obj = self.cached_obj_get(request, filters)
         except ObjectDoesNotExist:
-            return HttpGone()
+            return 404
         except MultipleObjectsReturned:
-            return HttpMultipleChoices("More than one resource is found at this URI.")
+            return {"error": "More than one resource is found at this URI."}, 300
         
         bundle = self.full_dehydrate(obj)
         return bundle
@@ -767,8 +767,12 @@ class Resource(object):
             return HttpGone()
 
     # TODO: needs to return a HttpResponse with a custom Allow header
-    def options(self, request, filters, format):
-        return self.methods.keys()
+    def options(self, request, filters, raw_format):
+        format = self.determine_format(request, raw_format)
+        content = self.serialize(request, self.methods.keys(), format)
+        response = HttpResponse(content)
+        response['Allow'] = "; ".join(self.method.keys())
+        return response
     
     def patch(self, request, filters, format):
         raise NotImplementedError()
